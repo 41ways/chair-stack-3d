@@ -41,4 +41,5 @@
 
 ## 배포
 
-Cloudflare Workers 정적 자산. `npx wrangler deploy`
+GitHub Pages(main 루트): https://41ways.github.io/chair-stack-3d/ — 푸시하면 반영된다.
+Cloudflare Workers(`npx wrangler deploy`, chair-stack-3d.41ways.workers.dev)에도 올라가 있지만 허브는 Pages로 연결한다.
