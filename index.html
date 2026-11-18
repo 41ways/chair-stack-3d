@@ -66,6 +66,11 @@ button:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
 .big{height:52px;border-radius:14px;border:0;background:var(--accent);color:var(--accent-ink);font-family:var(--font-display);font-size:20px}
 .big.sub{background:var(--wall);color:var(--ink)}
 .big:disabled{opacity:.5;cursor:default}
+.mode{display:grid;grid-template-columns:1fr 1fr;gap:6px;margin:16px 0 0;padding:4px;background:var(--wall);border-radius:14px}
+.mode button{border:0;border-radius:11px;background:none;padding:8px 6px;font-family:var(--font-display);font-size:17px;line-height:1.2}
+.mode button small{display:block;font-family:var(--font-body);font-size:12px;color:var(--ink-soft);margin-top:2px}
+.mode button[aria-checked="true"]{background:#fff;box-shadow:0 1px 4px #22302a22}
+.mchip{font-family:var(--font-display);font-size:13px;padding:3px 10px;border-radius:999px;border:1.5px solid var(--ink-soft);color:var(--ink-soft)}
 .np{display:flex;gap:6px;justify-content:center;align-items:center;margin-top:2px}
 .np span{font-size:13px;color:var(--ink-soft);margin-right:4px}
 .np button{width:44px;height:36px;border-radius:10px;border:1px solid var(--line);background:#fff;font-family:var(--font-display);font-size:16px}
@@ -99,6 +104,7 @@ button:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
   <div class="stat gs"><div class="k">쌓은 의자</div><div class="v" id="sCount">0</div></div>
   <div class="stat gs"><div class="k">높이</div><div class="v" id="sHeight">0.00 m</div></div>
   <div class="stat gs" id="bestBox"><div class="k">최고</div><div class="v" id="sBest">-</div></div>
+  <span class="mchip gs" id="modeChip"></span>
   <div class="grow"></div>
   <span class="turn" id="turn" hidden></span>
   <span class="ver" id="verTop"></span>
@@ -136,6 +142,10 @@ button:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
   <div class="card">
     <h1>의자 쌓기 <small>3D</small></h1>
     <p>의자를 하나씩 들어 탑 위 빈자리에 얹어요.<br>돌리고 눕혀서 구석구석 끼워 넣고, 하나라도 받침대에서 떨어지면 끝이에요.</p>
+    <div class="mode" id="mode" role="radiogroup" aria-label="판">
+      <button data-m="basic" role="radio">기본판<small>똑같은 네모 의자만</small></button>
+      <button data-m="ext" role="radio">확장판<small>모양이 다른 의자 다섯 종류</small></button>
+    </div>
     <div class="btns">
       <button class="big" id="bSolo" disabled>불러오는 중…</button>
       <button class="big sub" id="bVs" disabled>한 화면에서 같이 하기</button>
@@ -144,7 +154,7 @@ button:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
     <div class="how">
       <b>옮기기</b> 마우스를 움직이거나 한 손가락으로 끌기<br>
       <b>돌리기·눕히기</b> 아래 버튼, 키보드 Q E · W S · A D<br>
-      <b>놓기</b> 클릭, Space, 놓기 버튼. 의자는 바로 아래 닿을 곳에서 10cm 위에 떠 있다가 떨어져요<br>
+      <b>놓기</b> 클릭, Space, 놓기 버튼. 의자는 바로 아래 닿을 곳에서 10cm 위에 떠 있다가 떨어져요. 빨간 고리가 가장 먼저 닿는 곳<br>
       <b>시점</b> 오른쪽 드래그, 두 손가락, ◀ ▶ 버튼
     </div>
     <div class="best" id="bestLine"></div>
@@ -180,6 +190,7 @@ const $ = id => document.getElementById(id);
 
 /* ── 버전 ── 새 버전은 맨 위에 한 줄, CHANGELOG.md, git 태그 vX.Y */
 const VERSIONS = [
+  ['1.1','기본판과 확장판으로 나눔. 기본판은 다리·등받이가 모두 직각인 네모 의자만, 확장판은 다섯 종류. 최고 기록도 판마다 따로. 놓을 때 닿는 곳을 세로선과 점으로 보여 줌(먼저 닿는 곳은 빨간색)'],
   ['1.0','처음 공개. 의자 다섯 종류(나무 의자·학교 의자·네모 스툴·팔걸이 소파·긴 벤치), 돌리기·앞뒤·옆으로 눕히기, 혼자 하기와 한 화면 2~4명'],
 ];
 const VERSION = 'v' + VERSIONS[0][0];
@@ -205,6 +216,14 @@ function rod(r,a,b,m){
 }
 
 const TYPES = {
+  block: { name:'네모 의자', w:0, note:'다리와 등받이가 모두 직각이에요', sharp:true,
+    pals:['#d4573a','#3c6db0','#e0b13a','#2f8f83','#f3efe6','#2b2f36','#8a5aa8','#e9799b'].map(c=>({frame:c,seat:c})),
+    parts:[
+      ...[[-1,1],[1,1],[-1,-1],[1,-1]].map(([sx,sz])=>box(.05,.40,.05, sx*.175,.20,sz*.175,'frame')),
+      box(.40,.05,.40, 0,.425,0,'seat'),
+      box(.05,.40,.05,-.175,.65,-.175,'frame'), box(.05,.40,.05,.175,.65,-.175,'frame'),
+      box(.30,.08,.05, 0,.81,-.175,'frame'),
+    ]},
   wood: { name:'나무 의자', w:30, note:'등받이 때문에 앉는 자리가 좁아요',
     pals:[{frame:'#c58b52',seat:'#c58b52'},{frame:'#8a5a3a',seat:'#a26b45'},{frame:'#efe9dc',seat:'#d4573a'}],
     parts:[
@@ -250,10 +269,13 @@ const TYPES = {
     ]},
 };
 const KINDS = Object.keys(TYPES);
+/* 기본판은 네모 의자만, 확장판은 나머지 다섯 종류 */
+const MODES = { basic:{ name:'기본판', kinds:['block'] }, ext:{ name:'확장판', kinds:['wood','school','stool','arm','bench'] } };
 
 /* 부품마다 질량 중심과 판정용 모양을 미리 계산 */
 for (const k of KINDS){
   const T = TYPES[k]; let M=0; const c=new THREE.Vector3();
+  if (T.sharp) for (const p of T.parts) p.sharp = true;
   for (const p of T.parts){
     p.vol = p.s==='box' ? p.w*p.h*p.d : Math.PI*p.r*p.r*p.h;
     const m = p.vol*DENS[p.m]; M+=m; c.addScaledVector(new THREE.Vector3(p.x,p.y,p.z), m);
@@ -294,9 +316,9 @@ function mat(hex, kind){
 }
 const geoCache = {};
 function geoOf(p){
-  const key = p.s==='box' ? `b${p.w},${p.h},${p.d}` : `c${p.r},${p.h}`;
+  const key = p.s==='box' ? `b${p.w},${p.h},${p.d}${p.sharp?'s':''}` : `c${p.r},${p.h}`;
   if (!geoCache[key]) geoCache[key] = p.s==='box'
-    ? new RoundedBoxGeometry(p.w, p.h, p.d, 2, Math.min(.012, Math.min(p.w,p.h,p.d)*.3))
+    ? p.sharp ? new THREE.BoxGeometry(p.w, p.h, p.d) : new RoundedBoxGeometry(p.w, p.h, p.d, 2, Math.min(.012, Math.min(p.w,p.h,p.d)*.3))
     : new THREE.CylinderGeometry(p.r, p.r, p.h, p.r>.05?40:12);
   return geoCache[key];
 }
@@ -349,24 +371,85 @@ function addBody(kind, pos, q){
 
 /* 의자를 (x, z)에서 똑바로 내렸을 때 다리 바닥 원점이 닿는 높이 */
 const _v=new THREE.Vector3(), _q=new THREE.Quaternion();
+let firstPart = -1, firstHit = null, firstPose = null, firstLand = 0;
 function landingY(kind, x, z, q){
-  const startY = S.maxY + 2.5; let best = Infinity;
+  let pi = 0;
+  const startY = S.maxY + 2.5; let best = Infinity; firstPart = -1;
   for (const p of TYPES[kind].parts){
     _v.set(p.x,p.y,p.z).applyQuaternion(q); _q.copy(q).multiply(p.q);
     const hit = world.castShape({x:x+_v.x,y:startY+_v.y,z:z+_v.z}, {x:_q.x,y:_q.y,z:_q.z,w:_q.w}, {x:0,y:-1,z:0}, p.shape, 30, true);
-    if (hit){ const t = hit.toi ?? hit.time_of_impact; if (t<best) best=t; }
+    if (hit){ const t = hit.toi ?? hit.time_of_impact;
+      if (t<best){ best=t; firstPart=pi; firstHit=hit; firstPose={ x:x+_v.x, y:startY+_v.y-t, z:z+_v.z, q:_q.clone() }; } }
+    pi++;
   }
+  firstLand = startY - best;
   return best===Infinity ? 0 : startY - best;
+}
+
+/* ── 닿는 곳 안내선 ── 가장 먼저 닿는 점은 빨간 선과 고리, 바닥 쪽 다른 부품은 아래로 회색 선과 점 */
+const PIN_N = 16;
+const pinMat = { first:new THREE.MeshBasicMaterial({ color:'#d4573a', transparent:true, opacity:.95, depthTest:false }),
+                 other:new THREE.MeshBasicMaterial({ color:'#22302a', transparent:true, opacity:.5, depthTest:false }) };
+const stickGeo = new THREE.CylinderGeometry(.0035, .0035, 1, 6).translate(0, -.5, 0);
+const dotGeo = new THREE.CircleGeometry(.02, 20).rotateX(-Math.PI/2);
+const ringGeo = new THREE.RingGeometry(.026, .034, 24).rotateX(-Math.PI/2);
+const pins = [];
+for (let i=0;i<PIN_N;i++){
+  const stick = new THREE.Mesh(stickGeo, pinMat.other), dot = new THREE.Mesh(dotGeo, pinMat.other), ring = new THREE.Mesh(ringGeo, pinMat.first);
+  for (const m of [stick, dot, ring]){ m.renderOrder = 10; m.visible = false; scene.add(m); }
+  pins.push({ stick, dot, ring });
+}
+const _c = new THREE.Vector3(), _r = new RAPIER.Ray({x:0,y:0,z:0},{x:0,y:-1,z:0});
+function partPoints(p, pos, q){   // 부품 꼭짓점(막대는 양 끝) 세계 좌표
+  const out = [];
+  _q.copy(q).multiply(p.q);
+  const loc = p.s==='box'
+    ? [-1,1].flatMap(a=>[-1,1].flatMap(b=>[-1,1].map(c=>[a*p.w/2,b*p.h/2,c*p.d/2])))
+    : [[0,-p.h/2,0],[0,p.h/2,0]];
+  for (const [x,y,z] of loc){
+    _c.set(x,y,z).applyQuaternion(_q); _v.set(p.x,p.y,p.z).applyQuaternion(q);
+    out.push(new THREE.Vector3(pos.x+_v.x+_c.x, pos.y+_v.y+_c.y, pos.z+_v.z+_c.z));
+  }
+  return out;
+}
+function showPins(h){
+  let n = 0;
+  if (h){
+    const parts = TYPES[h.kind].parts, pts = parts.map(p => partPoints(p, h, h.q));
+    const low = pts.map(a => Math.min(...a.map(v=>v.y))), minY = Math.min(...low);
+    if (firstHit){   // 가장 먼저 닿는 점: 그 점에서 들고 있는 의자까지 빨간 선
+      const w = firstHit.witness2, c = new THREE.Vector3(w.x,w.y,w.z).applyQuaternion(firstPose.q).add(firstPose);
+      const len = Math.max(.001, h.y - firstLand), P = pins[n++];
+      P.stick.material = P.dot.material = pinMat.first;
+      P.stick.position.set(c.x, c.y+len, c.z); P.stick.scale.y = len;
+      P.dot.position.set(c.x, c.y+.003, c.z); P.ring.position.copy(P.dot.position);
+      P.stick.visible = P.dot.visible = P.ring.visible = true;
+    }
+    parts.forEach((p, i) => {
+      if (i===firstPart || low[i] > minY + .05 || n >= PIN_N) return;
+      const bot = pts[i].filter(v => v.y < low[i] + .012);           // 부품 바닥 면(기울면 모서리 하나)
+      const c = bot.reduce((a,v)=>a.add(v), new THREE.Vector3()).multiplyScalar(1/bot.length);
+      _r.origin = { x:c.x, y:c.y-.001, z:c.z };
+      const hit = world.castRay(_r, 30, true); if (!hit) return;
+      const len = hit.toi ?? hit.time_of_impact, P = pins[n++];
+      P.stick.material = P.dot.material = pinMat.other;
+      P.stick.position.copy(c); P.stick.scale.y = Math.max(.001, len);
+      P.dot.position.set(c.x, c.y-len+.003, c.z); P.ring.position.copy(P.dot.position);
+      P.stick.visible = P.dot.visible = true; P.ring.visible = false;
+    });
+  }
+  for (let i=n;i<PIN_N;i++){ const P=pins[i]; P.stick.visible = P.dot.visible = P.ring.visible = false; }
 }
 
 /* ── 게임 상태 ── */
 const S = {
-  phase:'home', chairs:[], held:null, next:null,
+  phase:'home', mode:'basic', chairs:[], held:null, next:null,
   count:0, maxY:TOP, np:1, turn:0, dropper:0,
   settleT:0, quietT:0, overT:0, toastT:0,
 };
-const pick = () => { const tot=KINDS.reduce((a,k)=>a+TYPES[k].w,0); let r=Math.random()*tot;
-  for (const k of KINDS){ r-=TYPES[k].w; if (r<0) return k; } return KINDS[0]; };
+const pick = () => { const ks=MODES[S.mode].kinds; if (ks.length===1) return ks[0];
+  const tot=ks.reduce((a,k)=>a+TYPES[k].w,0); let r=Math.random()*tot;
+  for (const k of ks){ r-=TYPES[k].w; if (r<0) return k; } return ks[0]; };
 const newSpec = () => { const k=pick(); return { kind:k, pal:Math.floor(Math.random()*TYPES[k].pals.length) }; };
 
 function clearChairs(){
@@ -387,13 +470,20 @@ function comY(c){ const t=c.rb.translation(), r=c.rb.rotation();
 
 /* ── 화면 문구 ── */
 const isTouch = matchMedia('(pointer:coarse)').matches;
-function bestGet(){ try { return JSON.parse(localStorage.getItem('chair3d.best')||'null'); } catch { return null; } }
-function bestSet(b){ try { localStorage.setItem('chair3d.best', JSON.stringify(b)); } catch {} }
+function bestGet(m=S.mode){ try { return JSON.parse(localStorage.getItem('chair3d.best.'+m)||'null'); } catch { return null; } }
+function bestSet(b){ try { localStorage.setItem('chair3d.best.'+S.mode, JSON.stringify(b)); } catch {} }
+try { const old=localStorage.getItem('chair3d.best');   // v1.0 기록은 지금의 확장판
+  if (old){ if (!localStorage.getItem('chair3d.best.ext')) localStorage.setItem('chair3d.best.ext', old); localStorage.removeItem('chair3d.best'); } } catch {}
+function setMode(m){
+  S.mode = m; try { localStorage.setItem('chair3d.mode', m); } catch {}
+  for (const b of document.querySelectorAll('#mode button')) b.setAttribute('aria-checked', b.dataset.m===m);
+  $('modeChip').textContent = MODES[m].name; showBest();
+}
 function fmtH(h){ return Math.max(0,h).toFixed(2)+' m'; }
 function showBest(){
   const b = bestGet();
   $('sBest').textContent = b ? `${b.n}개` : '-';
-  $('bestLine').textContent = b ? `혼자 하기 최고 기록 ${b.n}개 · ${fmtH(b.h)}` : '';
+  $('bestLine').textContent = b ? `${MODES[S.mode].name} 혼자 하기 최고 기록 ${b.n}개 · ${fmtH(b.h)}` : '';
 }
 function showInfo(){
   if (!S.held){ $('info').hidden = true; return; }
@@ -401,7 +491,7 @@ function showInfo(){
   $('info').hidden = false;
   $('iNow').textContent = T.name;
   $('iNote').textContent = T.note;
-  $('iNext').textContent = '다음: ' + TYPES[S.next.kind].name;
+  $('iNext').textContent = S.mode==='basic' ? '' : '다음: ' + TYPES[S.next.kind].name;
 }
 function showTurn(){
   const t = $('turn');
@@ -458,12 +548,12 @@ function showOver(){
     const b = bestGet(), isNew = !b || S.count>b.n || (S.count===b.n && h>b.h);
     if (isNew && S.count>0) bestSet({ n:S.count, h });
     $('oTitle').textContent = '떨어졌어요';
-    $('oSub').textContent = '받침대 위에 남긴 의자';
+    $('oSub').textContent = `${MODES[S.mode].name} · 받침대 위에 남긴 의자`;
     $('oRes').innerHTML = `${S.count}<small>개</small>`;
     $('oBest').textContent = isNew && S.count>0 ? '새 기록이에요' : b ? `최고 기록 ${b.n}개` : '';
   } else {
     $('oTitle').textContent = `${S.dropper+1}P가 떨어뜨렸어요`;
-    $('oSub').textContent = '함께 쌓은 의자';
+    $('oSub').textContent = `${MODES[S.mode].name} · 함께 쌓은 의자`;
     $('oRes').innerHTML = `${S.count}<small>개</small>`;
     $('oBest').textContent = `높이 ${fmtH(h)}`;
   }
@@ -477,7 +567,8 @@ function demo(){
     const y = landingY(kind, x, z, q) + .002;
     S.chairs.push({ kind, pal, rb:addBody(kind,{x,y,z},q), mesh:makeMesh(kind,pal) });
   };
-  put('wood', 0, -.12, .05, .5); put('stool', 0, .26, -.18, 0);
+  if (S.mode==='basic'){ put('block', 0, -.2, .05, .3); put('block', 1, .22, -.1, 2.2); }
+  else { put('wood', 0, -.12, .05, .5); put('stool', 0, .26, -.18, 0); }
 }
 
 /* ── 카메라 ── */
@@ -634,6 +725,8 @@ for (const b of document.querySelectorAll('#np button')){
   b.addEventListener('click', () => { vsN = +b.dataset.n;
     for (const o of document.querySelectorAll('#np button')) o.classList.toggle('on', o===b); });
 }
+for (const b of document.querySelectorAll('#mode button'))
+  b.addEventListener('click', () => { if (S.mode===b.dataset.m) return; setMode(b.dataset.m); clearChairs(); demo(); });
 $('bSolo').addEventListener('click', () => start(1));
 $('bVs').addEventListener('click', () => start(vsN));
 $('bAgain').addEventListener('click', () => start(S.np));
@@ -665,7 +758,8 @@ function frame(now){
     const h = S.held, want = landingY(h.kind, h.x, h.z, h.q) + GAP;
     h.y += (want - h.y) * Math.min(1, dt*14);
     h.mesh.position.set(h.x, h.y, h.z); h.mesh.quaternion.copy(h.q);
-  }
+    showPins(h);
+  } else showPins(null);
   if (S.phase==='settle'){
     S.settleT += dt;
     S.quietT = quiet() ? S.quietT+dt : 0;
@@ -683,12 +777,13 @@ function frame(now){
   requestAnimationFrame(frame);
 }
 
-showBest(); demo();
+{ let m='basic'; try { m=localStorage.getItem('chair3d.mode')||'basic'; } catch {} setMode(MODES[m]?m:'basic'); }
+demo();
 $('bSolo').disabled = false; $('bSolo').textContent = '혼자 하기';
 $('bVs').disabled = false;
 requestAnimationFrame(frame);
 
-if (new URLSearchParams(location.search).has('t')) window.__t = { S, TYPES, makeMesh, scene, world, landingY, drop, start, holdStart, holdEnd, rotateHeld, setHeldXZ, cam, comY, TOP };
+if (new URLSearchParams(location.search).has('t')) window.__t = { get firstHit(){return firstHit}, get firstPose(){return firstPose}, S, TYPES, makeMesh, scene, world, landingY, drop, start, holdStart, holdEnd, rotateHeld, setHeldXZ, cam, comY, TOP };
 </script>
 </body>
 </html>
