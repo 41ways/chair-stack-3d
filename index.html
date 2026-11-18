@@ -75,6 +75,20 @@ button:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
 .np span{font-size:13px;color:var(--ink-soft);margin-right:4px}
 .np button{width:44px;height:36px;border-radius:10px;border:1px solid var(--line);background:#fff;font-family:var(--font-display);font-size:16px}
 .np button.on{background:var(--ink);color:#fff;border-color:var(--ink)}
+.fld{display:flex;align-items:center;gap:10px;margin:14px 0 4px;text-align:left}
+.fld span{font-size:13px;color:var(--ink-soft);flex:none}
+.fld input,.join input{flex:1;min-width:0;height:42px;border-radius:12px;border:1px solid var(--line);background:#fff;padding:0 12px;font:inherit;font-size:16px;color:var(--ink);user-select:text;-webkit-user-select:text}
+.join{display:flex;gap:8px;margin:0 0 4px}
+.join input{text-transform:uppercase;font-family:var(--font-mono);letter-spacing:.15em}
+.join .big{flex:none;width:96px}
+.rcode{margin:16px 0 4px}
+.rcode small{display:block;font-size:12px;color:var(--ink-soft)}
+.rcode b{font-family:var(--font-mono);font-weight:500;font-size:40px;letter-spacing:.2em}
+.link{background:none;border:0;color:var(--accent);font-size:13px;text-decoration:underline;padding:2px}
+.plist{list-style:none;margin:12px 0 4px;padding:0;display:flex;flex-wrap:wrap;gap:6px;justify-content:center}
+.plist li{padding:4px 12px;border-radius:999px;background:var(--wall);font-size:14px}
+.plist li.me{background:var(--ink);color:#fff}
+.nmsg{min-height:1.4em;color:var(--accent)!important}
 .how{text-align:left;font-size:13px;color:var(--ink-soft);background:var(--wall);border-radius:12px;padding:10px 14px;margin:12px 0 4px;line-height:1.7}
 .how b{color:var(--ink);font-weight:400;font-family:var(--font-display)}
 .best{font-size:13px;color:var(--ink-soft);margin-top:8px}
@@ -148,17 +162,39 @@ button:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
     </div>
     <div class="btns">
       <button class="big" id="bSolo" disabled>불러오는 중…</button>
+      <button class="big sub" id="bOnline" disabled>온라인으로 같이 하기</button>
       <button class="big sub" id="bVs" disabled>한 화면에서 같이 하기</button>
       <div class="np" id="np"><span>사람 수</span><button data-n="2" class="on">2</button><button data-n="3">3</button><button data-n="4">4</button></div>
     </div>
     <div class="how">
       <b>옮기기</b> 마우스를 움직이거나 한 손가락으로 끌기<br>
       <b>돌리기·눕히기</b> 아래 버튼, 키보드 Q E · W S · A D<br>
-      <b>놓기</b> 클릭, Space, 놓기 버튼. 의자는 바로 아래 닿을 곳에서 10cm 위에 떠 있다가 떨어져요. 빨간 고리가 가장 먼저 닿는 곳<br>
+      <b>놓기</b> 클릭, Space, 놓기 버튼. 의자는 바로 아래 닿을 곳에서 10cm 위에 떠 있다가 떨어져요. 주황 선이 닿는 곳<br>
       <b>시점</b> 오른쪽 드래그, 두 손가락, ◀ ▶ 버튼
     </div>
     <div class="best" id="bestLine"></div>
     <div class="foot"><details class="vlog"><summary id="verFoot"></summary><ol id="verList"></ol></details></div>
+  </div>
+</div>
+
+<div class="ov" id="ovNet" hidden>
+  <div class="card">
+    <h2>온라인으로 같이 하기</h2>
+    <p>방을 만들면 코드가 나와요. 친구가 그 코드로 들어오면 브라우저끼리 바로 이어져요. 물리는 방장 화면이 계산해요.</p>
+    <label class="fld"><span>이름</span><input id="nName" maxlength="8" autocomplete="off"></label>
+    <div id="netPick">
+      <div class="btns"><button class="big" id="bHost">방 만들기</button></div>
+      <div class="join"><input id="nCode" placeholder="코드 4자리" maxlength="4" autocomplete="off" autocapitalize="characters"><button class="big sub" id="bJoin">참가</button></div>
+    </div>
+    <div id="netRoom" hidden>
+      <div class="rcode"><small>방 코드</small><b id="nRoomCode"></b></div>
+      <button class="link" id="bCopy">초대 링크 복사</button>
+      <ol class="plist" id="nPlayers"></ol>
+      <p id="nRoomMode"></p>
+      <div class="btns"><button class="big" id="bNetStart" hidden>시작</button></div>
+    </div>
+    <p class="nmsg" id="nMsg"></p>
+    <div class="btns"><button class="big sub" id="bNetBack">돌아가기</button></div>
   </div>
 </div>
 
@@ -175,6 +211,7 @@ button:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
   </div>
 </div>
 
+<script src="https://cdn.jsdelivr.net/npm/peerjs@1.5.4/dist/peerjs.min.js"></script>
 <script type="importmap">
 { "imports": {
   "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
@@ -190,6 +227,7 @@ const $ = id => document.getElementById(id);
 
 /* ── 버전 ── 새 버전은 맨 위에 한 줄, CHANGELOG.md, git 태그 vX.Y */
 const VERSIONS = [
+  ['1.2','온라인으로 같이 하기(방 코드, 최대 6명). 서버 없이 브라우저끼리 바로 연결, 물리는 방장 화면이 계산. 닿는 곳 안내선 색을 하나로'],
   ['1.1','기본판과 확장판으로 나눔. 기본판은 다리·등받이가 모두 직각인 네모 의자만, 확장판은 다섯 종류. 최고 기록도 판마다 따로. 놓을 때 닿는 곳을 세로선과 점으로 보여 줌(먼저 닿는 곳은 빨간색)'],
   ['1.0','처음 공개. 의자 다섯 종류(나무 의자·학교 의자·네모 스툴·팔걸이 소파·긴 벤치), 돌리기·앞뒤·옆으로 눕히기, 혼자 하기와 한 화면 2~4명'],
 ];
@@ -355,10 +393,9 @@ for (const k of KINDS) for (const p of TYPES[k].parts){
   p.shape = p.s==='box' ? new RAPIER.Cuboid(p.w/2,p.h/2,p.d/2) : new RAPIER.ConvexPolyhedron(p.pts);
 }
 
-function addBody(kind, pos, q){
-  const rb = world.createRigidBody(RAPIER.RigidBodyDesc.dynamic()
-    .setTranslation(pos.x,pos.y,pos.z).setRotation({x:q.x,y:q.y,z:q.z,w:q.w})
-    .setCcdEnabled(true).setAngularDamping(.05));
+function addBody(kind, pos, q, kin=false){   // kin: 참가자 화면. 방장이 보낸 자리로 옮기기만 한다
+  const desc = kin ? RAPIER.RigidBodyDesc.kinematicPositionBased() : RAPIER.RigidBodyDesc.dynamic().setCcdEnabled(true).setAngularDamping(.05);
+  const rb = world.createRigidBody(desc.setTranslation(pos.x,pos.y,pos.z).setRotation({x:q.x,y:q.y,z:q.z,w:q.w}));
   for (const p of TYPES[kind].parts){
     const d = p.s==='box' ? RAPIER.ColliderDesc.cuboid(p.w/2,p.h/2,p.d/2) : RAPIER.ColliderDesc.convexHull(p.pts);
     d.setTranslation(p.x,p.y,p.z).setRotation({x:p.q.x,y:p.q.y,z:p.q.z,w:p.q.w})
@@ -386,7 +423,7 @@ function landingY(kind, x, z, q){
   return best===Infinity ? 0 : startY - best;
 }
 
-/* ── 닿는 곳 안내선 ── 가장 먼저 닿는 점은 빨간 선과 고리, 바닥 쪽 다른 부품은 아래로 회색 선과 점 */
+/* ── 닿는 곳 안내선 ── 가장 먼저 닿는 점, 바닥 쪽 다른 부품에서 아래로 내린 곳에 같은 색 선과 점 */
 const PIN_N = 16;
 const pinMat = { first:new THREE.MeshBasicMaterial({ color:'#d4573a', transparent:true, opacity:.95, depthTest:false }),
                  other:new THREE.MeshBasicMaterial({ color:'#22302a', transparent:true, opacity:.5, depthTest:false }) };
@@ -423,7 +460,7 @@ function showPins(h){
       P.stick.material = P.dot.material = pinMat.first;
       P.stick.position.set(c.x, c.y+len, c.z); P.stick.scale.y = len;
       P.dot.position.set(c.x, c.y+.003, c.z); P.ring.position.copy(P.dot.position);
-      P.stick.visible = P.dot.visible = P.ring.visible = true;
+      P.stick.visible = P.dot.visible = true; P.ring.visible = false;
     }
     parts.forEach((p, i) => {
       if (i===firstPart || low[i] > minY + .05 || n >= PIN_N) return;
@@ -432,7 +469,7 @@ function showPins(h){
       _r.origin = { x:c.x, y:c.y-.001, z:c.z };
       const hit = world.castRay(_r, 30, true); if (!hit) return;
       const len = hit.toi ?? hit.time_of_impact, P = pins[n++];
-      P.stick.material = P.dot.material = pinMat.other;
+      P.stick.material = P.dot.material = pinMat.first;
       P.stick.position.copy(c); P.stick.scale.y = Math.max(.001, len);
       P.dot.position.set(c.x, c.y-len+.003, c.z); P.ring.position.copy(P.dot.position);
       P.stick.visible = P.dot.visible = true; P.ring.visible = false;
@@ -459,6 +496,7 @@ function clearChairs(){
 }
 function spawnHeld(){
   const sp = S.next || newSpec(); S.next = newSpec();
+  if (NET) NET.seq++;
   const yaw = (Math.random()*2-1)*Math.PI;
   S.held = { ...sp, mesh:makeMesh(sp.kind, sp.pal), x:0, z:0, y:S.maxY+.3,
              q:new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0,1,0), yaw), yaw };
@@ -495,7 +533,9 @@ function showInfo(){
 }
 function showTurn(){
   const t = $('turn');
-  if (S.np>1){ t.hidden=false; t.textContent = `${S.turn+1}P 차례`; } else t.hidden = true;
+  if (S.phase==='over' || S.phase==='falling' || S.phase==='home'){ t.hidden = true; return; }
+  if (NET){ t.hidden=false; t.textContent = myTurn() ? '내 차례' : `${nameAt(S.turn)} 차례`; }
+  else if (S.np>1){ t.hidden=false; t.textContent = `${S.turn+1}P 차례`; } else t.hidden = true;
 }
 function toast(msg, sec=1.2){ const t=$('toast'); t.textContent=msg; t.classList.add('on'); S.toastT=sec; }
 function updateStats(){ $('sCount').textContent = S.count; $('sHeight').textContent = fmtH(S.maxY-TOP); }
@@ -505,11 +545,13 @@ function start(np){
   clearChairs(); S.np=np; S.turn=0; S.count=0; S.maxY=TOP; S.next=null;
   document.body.classList.remove('home');
   $('ovHome').hidden = true; $('ovOver').hidden = true;
-  $('pad').hidden = false; $('keys').hidden = isTouch; $('bestBox').hidden = np>1;
+  $('ovNet').hidden = true;
+  $('pad').hidden = false; $('keys').hidden = isTouch; $('bestBox').hidden = np>1 || !!NET;
   cam.theta = .6; cam.phi = 1.0; cam.dist = 3.2;
-  S.phase = 'aim'; spawnHeld(); showTurn(); updateStats(); setDropEnabled(true);
+  S.phase = 'aim'; spawnHeld(); showTurn(); updateStats(); setDropEnabled(myTurn());
 }
 function goHome(){
+  if (NET) netLeave();
   clearChairs(); S.phase='home'; S.maxY=TOP; document.body.classList.add('home');
   $('ovOver').hidden = true; $('ovHome').hidden = false; $('pad').hidden = true; $('keys').hidden = true;
   $('info').hidden = true; $('turn').hidden = true; $('bestBox').hidden = false;
@@ -517,9 +559,15 @@ function goHome(){
 }
 function setDropEnabled(on){ $('drop').disabled = !on; }
 
-function drop(){
+function drop(remote){
   if (S.phase!=='aim' || !S.held) return;
+  if (!remote && !myTurn()) return;
   const h = S.held;
+  if (isGuest()){   // 참가자: 방장에게 보내고, 방장 쪽에 의자가 생길 때까지 들고 있던 모양은 그대로 둔다
+    NET.conn.send({ t:'drop', seq:NET.seq, x:h.x, y:h.y, z:h.z, q:h.q.toArray() });
+    NET.droppedSeq = NET.seq; S.phase = 'settle'; $('info').hidden = true; setDropEnabled(false);
+    return;
+  }
   const rb = addBody(h.kind, {x:h.x, y:h.y, z:h.z}, h.q);
   S.chairs.push({ kind:h.kind, pal:h.pal, rb, mesh:h.mesh });
   S.held = null; S.dropper = S.turn;
@@ -533,8 +581,8 @@ function quiet(){
 }
 function settled(){
   S.count++; updateStats();
-  if (S.np>1){ S.turn = (S.turn+1)%S.np; showTurn(); toast(`${S.turn+1}P 차례`, .9); }
-  S.phase = 'aim'; spawnHeld(); setDropEnabled(true);
+  if (S.np>1){ S.turn = (S.turn+1)%S.np; showTurn(); toast(NET ? (myTurn() ? '내 차례' : `${nameAt(S.turn)} 차례`) : `${S.turn+1}P 차례`, .9); }
+  S.phase = 'aim'; spawnHeld(); setDropEnabled(myTurn());
 }
 function fell(){
   S.phase = 'falling'; S.overT = 1.6; setDropEnabled(false);
@@ -544,7 +592,8 @@ function fell(){
 function showOver(){
   S.phase = 'over'; $('pad').hidden = true; $('keys').hidden = true;
   const h = S.maxY - TOP;
-  if (S.np===1){
+  $('bAgain').hidden = isGuest();
+  if (S.np===1 && !NET){
     const b = bestGet(), isNew = !b || S.count>b.n || (S.count===b.n && h>b.h);
     if (isNew && S.count>0) bestSet({ n:S.count, h });
     $('oTitle').textContent = '떨어졌어요';
@@ -552,10 +601,10 @@ function showOver(){
     $('oRes').innerHTML = `${S.count}<small>개</small>`;
     $('oBest').textContent = isNew && S.count>0 ? '새 기록이에요' : b ? `최고 기록 ${b.n}개` : '';
   } else {
-    $('oTitle').textContent = `${S.dropper+1}P가 떨어뜨렸어요`;
+    $('oTitle').textContent = NET ? `${nameAt(S.dropper)} 님이 떨어뜨렸어요` : `${S.dropper+1}P가 떨어뜨렸어요`;
     $('oSub').textContent = `${MODES[S.mode].name} · 함께 쌓은 의자`;
     $('oRes').innerHTML = `${S.count}<small>개</small>`;
-    $('oBest').textContent = `높이 ${fmtH(h)}`;
+    $('oBest').textContent = `높이 ${fmtH(h)}` + (isGuest() ? ' · 방장이 다시 시작하면 이어져요' : '');
   }
   showBest(); $('ovOver').hidden = false;
 }
@@ -602,10 +651,10 @@ function rotateHeld(name, ang){
   if (!S.held) return;
   S.held.q.premultiply(_q.setFromAxisAngle(axisOf(name), ang)).normalize();
 }
-function holdStart(axis, dir){ if (S.phase!=='aim') return; rotateHeld(axis, dir*STEP_ANG); Object.assign(rotHold, { axis, dir, t:0 }); }
+function holdStart(axis, dir){ if (S.phase!=='aim' || !myTurn()) return; rotateHeld(axis, dir*STEP_ANG); Object.assign(rotHold, { axis, dir, t:0 }); }
 function holdEnd(){ rotHold.axis = null; }
 function upright(){
-  if (!S.held) return;
+  if (!S.held || !myTurn()) return;
   const e = new THREE.Euler().setFromQuaternion(S.held.q, 'YXZ');
   S.held.q.setFromAxisAngle(new THREE.Vector3(0,1,0), e.y);
 }
@@ -627,7 +676,7 @@ function setHeldXZ(x, z){
   S.held.x = x; S.held.z = z;
 }
 function moveRelative(dx, dy){
-  if (!S.held) return;
+  if (!S.held || !myTurn()) return;
   const f = new THREE.Vector3(); camera.getWorldDirection(f); f.y = 0; f.normalize();
   const rt = new THREE.Vector3().crossVectors(f, new THREE.Vector3(0,1,0));
   const k = cam.dist * .0016;
@@ -704,7 +753,7 @@ $('drop').addEventListener('click', drop);
 const KEYROT = { KeyQ:['yaw',1], KeyE:['yaw',-1], KeyW:['pitch',-1], KeyS:['pitch',1], KeyA:['roll',1], KeyD:['roll',-1] };
 const keysDown = new Set();
 addEventListener('keydown', e => {
-  if (e.repeat) return;
+  if (e.repeat || (e.target.closest && e.target.closest('input'))) return;
   keysDown.add(e.code);
   if (KEYROT[e.code]) holdStart(...KEYROT[e.code]);
   else if (e.code==='KeyR') upright();
@@ -729,19 +778,255 @@ for (const b of document.querySelectorAll('#mode button'))
   b.addEventListener('click', () => { if (S.mode===b.dataset.m) return; setMode(b.dataset.m); clearChairs(); demo(); });
 $('bSolo').addEventListener('click', () => start(1));
 $('bVs').addEventListener('click', () => start(vsN));
-$('bAgain').addEventListener('click', () => start(S.np));
+$('bAgain').addEventListener('click', () => NET ? netStart() : start(S.np));
 $('bHome').addEventListener('click', goHome);
 $('home').addEventListener('click', goHome);
+
+
+/* ── 온라인(P2P) ──
+   방장 브라우저가 물리를 돌리고 50ms마다 탑 전체 자리(st)를 보낸다. 참가자는 그 자리로 의자를 옮겨 그리기만 한다.
+   차례인 참가자는 자기 화면에서 의자를 옮기며(aim) 놓으면(drop) 방장에게 보낸다.
+   브라우저끼리 WebRTC로 바로 잇고, 처음 찾아 연결하는 것만 PeerJS 공용 중계를 거친다(우리 서버 없음) */
+const NET_PREFIX = 'chairstack3d-', CODE_CHARS = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789', MAX_NET = 6;
+let NET = null;
+const isGuest = () => !!NET && NET.role==='guest';
+function myTurn(){ return !NET || (NET.players[S.turn] && NET.players[S.turn].id===NET.me); }
+const nameAt = i => NET ? (NET.players[i] ? NET.players[i].name : '누군가') : `${i+1}P`;
+const r4 = v => Math.round(v*1e4)/1e4;
+const cleanName = s => String(s||'').replace(/[\u0000-\u001f<>&]/g,'').trim().slice(0,8);
+function myName(){
+  let n = cleanName($('nName').value);
+  if (!n){ n = '손님' + (10 + Math.floor(Math.random()*89)); $('nName').value = n; }
+  try { localStorage.setItem('chair3d.name', n); } catch {}
+  return n;
+}
+function netMsg(t){ $('nMsg').textContent = t || ''; }
+function openNet(code){
+  $('ovHome').hidden = true; $('ovNet').hidden = false;
+  $('netPick').hidden = !!NET; $('netRoom').hidden = !NET; netMsg('');
+  try { $('nName').value = localStorage.getItem('chair3d.name') || ''; } catch {}
+  if (code) $('nCode').value = code;
+}
+function showRoom(){
+  $('netPick').hidden = true; $('netRoom').hidden = false; netMsg('');
+  $('nRoomCode').textContent = NET.code;
+  $('nPlayers').innerHTML = NET.players.map(p => `<li class="${p.id===NET.me?'me':''}">${p.name}${p.id===NET.players[0].id?' · 방장':''}</li>`).join('');
+  $('nRoomMode').textContent = `${MODES[S.mode].name} · ${NET.players.length}명 / 최대 ${MAX_NET}명`;
+  $('bNetStart').hidden = NET.role!=='host';
+  $('bNetStart').disabled = NET.players.length < 2;
+  if (NET.role!=='host') netMsg('방장이 시작하길 기다려요');
+}
+function netFail(msg){
+  const keep = NET && NET.joined;
+  netLeave(); openNet(); netMsg(msg);
+  if (keep) goHome();
+}
+function netLeave(){
+  const n = NET; NET = null; if (!n) return;
+  try { if (n.role==='guest' && n.conn) n.conn.send({ t:'bye' }); } catch {}
+  setTimeout(() => { try { n.peer.destroy(); } catch {} }, 150);
+}
+function broadcast(m){ if (NET) for (const p of NET.players) if (p.conn && p.conn.open) { try { p.conn.send(m); } catch {} } }
+
+/* 방장 */
+function netHost(){
+  if (typeof Peer==='undefined') return netMsg('연결 도구를 불러오지 못했어요. 새로고침해 주세요');
+  const name = myName();
+  let code = ''; for (let i=0;i<4;i++) code += CODE_CHARS[Math.floor(Math.random()*CODE_CHARS.length)];
+  netMsg('방을 만드는 중…');
+  const peer = new Peer(NET_PREFIX+code);
+  NET = { role:'host', peer, code, me:NET_PREFIX+code, players:[{ id:NET_PREFIX+code, name }], game:0, seq:0, lastSt:0, joined:true };
+  peer.on('open', () => showRoom());
+  peer.on('error', e => {
+    if (e.type==='unavailable-id'){ netLeave(); netHost(); }
+    else if (e.type!=='peer-unavailable') netFail('연결이 안 돼요 (' + e.type + ')');
+  });
+  peer.on('disconnected', () => { try { peer.reconnect(); } catch {} });
+  peer.on('connection', conn => {
+    conn.on('data', d => hostRecv(conn, d));
+    conn.on('close', () => hostGone(conn.peer));
+    conn.on('error', () => hostGone(conn.peer));
+  });
+}
+function lobbySync(){
+  broadcast({ t:'lobby', code:NET.code, mode:S.mode, players:NET.players.map(p=>({ id:p.id, name:p.name })) });
+  if (S.phase==='home') showRoom();
+}
+function hostRecv(conn, d){
+  if (!NET || NET.role!=='host' || !d || typeof d.t!=='string') return;
+  const idx = NET.players.findIndex(p => p.id===conn.peer);
+  if (d.t==='hi'){
+    if (idx>=0) return;
+    if (S.phase!=='home'){ conn.send({ t:'no', msg:'이미 게임이 시작됐어요. 다음 판에 들어와 주세요' }); return; }
+    if (NET.players.length >= MAX_NET){ conn.send({ t:'no', msg:`방이 가득 찼어요 (최대 ${MAX_NET}명)` }); return; }
+    let name = cleanName(d.name) || '손님';
+    while (NET.players.some(p => p.name===name)) name += '2';
+    NET.players.push({ id:conn.peer, name, conn });
+    lobbySync(); return;
+  }
+  if (idx<0) return;
+  if (d.t==='bye'){ hostGone(conn.peer); return; }
+  if (idx!==S.turn || S.phase!=='aim' || !S.held) return;
+  const h = S.held, q = Array.isArray(d.q) && d.q.length===4 ? d.q.map(Number) : null;
+  if (!q || ![d.x,d.y,d.z,...q].every(Number.isFinite)) return;
+  const lim = HALF + .3;
+  h.x = Math.max(-lim, Math.min(lim, d.x)); h.z = Math.max(-lim, Math.min(lim, d.z)); h.y = d.y; h.q.fromArray(q).normalize();
+  if (d.t==='drop' && d.seq===NET.seq){ h.mesh.position.set(h.x, h.y, h.z); h.mesh.quaternion.copy(h.q); drop(true); }
+}
+function hostGone(id){
+  if (!NET || NET.role!=='host') return;
+  const idx = NET.players.findIndex(p => p.id===id);
+  if (idx<=0) return;
+  const [p] = NET.players.splice(idx, 1);
+  try { p.conn.close(); } catch {}
+  if (S.phase==='home'){ lobbySync(); return; }
+  toast(`${p.name} 님이 나갔어요`, 1.6);
+  S.np = NET.players.length;
+  if (idx < S.turn) S.turn--;
+  else if (idx===S.turn){
+    S.turn %= NET.players.length;
+    if (S.phase==='aim'){ if (S.held){ scene.remove(S.held.mesh); S.held = null; } spawnHeld(); setDropEnabled(myTurn()); }
+  }
+  if (S.dropper >= NET.players.length) S.dropper = 0;
+  showTurn();
+}
+function netStart(){
+  if (!NET || NET.role!=='host') return;
+  NET.game++; NET.seq = 0;
+  start(NET.players.length);
+  broadcast(stateMsg());
+}
+function stateMsg(){
+  const h = S.held;
+  return { t:'st', g:NET.game, ph:S.phase, turn:S.turn, count:S.count, dropper:S.dropper, mode:S.mode, seq:NET.seq,
+    pl:NET.players.map(p => [p.id, p.name]), next:S.next ? S.next.kind : null,
+    held: h ? [KINDS.indexOf(h.kind), h.pal, r4(h.x), r4(h.y), r4(h.z), ...h.q.toArray().map(r4)] : null,
+    c: S.chairs.map(c => { const t=c.rb.translation(), r=c.rb.rotation();
+      return [KINDS.indexOf(c.kind), c.pal, r4(t.x), r4(t.y), r4(t.z), r4(r.x), r4(r.y), r4(r.z), r4(r.w)]; }) };
+}
+
+/* 참가자 */
+function netJoin(){
+  if (typeof Peer==='undefined') return netMsg('연결 도구를 불러오지 못했어요. 새로고침해 주세요');
+  const code = $('nCode').value.trim().toUpperCase();
+  if (!/^[A-Z0-9]{4}$/.test(code)) return netMsg('코드 4자리를 넣어 주세요');
+  const name = myName();
+  netMsg('들어가는 중…');
+  const peer = new Peer();
+  NET = { role:'guest', peer, code, me:null, players:[], conn:null, game:-1, seq:-1, droppedSeq:-1, lastAim:0, joined:false };
+  const mine = NET;
+  peer.on('open', id => {
+    if (NET!==mine) return;
+    NET.me = id;
+    const conn = peer.connect(NET_PREFIX+code, { reliable:true });
+    NET.conn = conn;
+    conn.on('open', () => conn.send({ t:'hi', name }));
+    conn.on('data', d => { if (NET===mine) guestRecv(d); });
+    conn.on('close', () => { if (NET===mine){ const inGame = S.phase!=='home'; netLeave(); if (inGame) goHome(); openNet(); netMsg('방이 닫혔어요'); } });
+  });
+  peer.on('error', e => { if (NET!==mine) return;
+    netFail(e.type==='peer-unavailable' ? '그 코드의 방을 찾지 못했어요' : '연결이 안 돼요 (' + e.type + ')'); });
+  setTimeout(() => { if (NET===mine && !mine.joined) netFail('연결이 안 돼요. 코드를 확인하거나 다른 네트워크에서 해 보세요'); }, 15000);
+}
+function guestRecv(d){
+  if (!d || typeof d.t!=='string') return;
+  if (d.t==='no'){ netFail(d.msg); return; }
+  if (d.t==='lobby'){
+    NET.joined = true; NET.players = d.players; NET.code = d.code;
+    if (S.mode!==d.mode){ setMode(d.mode); if (S.phase==='home'){ clearChairs(); demo(); } }
+    if (S.phase==='home') showRoom();
+    return;
+  }
+  if (d.t==='st') applyState(d);
+}
+function sendAim(now){
+  if (now - NET.lastAim < 50 || !NET.conn) return;
+  NET.lastAim = now;
+  const h = S.held; NET.conn.send({ t:'aim', x:r4(h.x), y:r4(h.y), z:r4(h.z), q:h.q.toArray().map(r4) });
+}
+function applyState(d){
+  NET.joined = true;
+  NET.players = d.pl.map(([id, name]) => ({ id, name }));
+  if (S.mode!==d.mode) setMode(d.mode);
+  if (d.g!==NET.game){   // 새 판
+    NET.game = d.g; NET.seq = -1; NET.droppedSeq = -1;
+    clearChairs(); S.np = NET.players.length; S.turn = d.turn; S.count = 0; S.maxY = TOP;
+    document.body.classList.remove('home');
+    $('ovHome').hidden = true; $('ovNet').hidden = true; $('ovOver').hidden = true;
+    $('pad').hidden = false; $('keys').hidden = isTouch; $('bestBox').hidden = true;
+    cam.theta = .6; cam.phi = 1.0; cam.dist = 3.2;
+  }
+  S.np = NET.players.length; S.count = d.count; S.dropper = d.dropper;
+  const turnChanged = S.turn!==d.turn; S.turn = d.turn;
+  S.next = d.next ? { kind:d.next, pal:0 } : null;
+  // 의자
+  while (S.chairs.length > d.c.length){ const c = S.chairs.pop(); world.removeRigidBody(c.rb); scene.remove(c.mesh); }
+  d.c.forEach((a, i) => {
+    const kind = KINDS[a[0]]; let c = S.chairs[i];
+    if (!c || c.kind!==kind){
+      if (c){ world.removeRigidBody(c.rb); scene.remove(c.mesh); }
+      const q = new THREE.Quaternion(a[5], a[6], a[7], a[8]);
+      c = { kind, pal:a[1], rb:addBody(kind, { x:a[2], y:a[3], z:a[4] }, q, true), mesh:makeMesh(kind, a[1]) };
+      S.chairs[i] = c;
+      if (S.held && i===S.chairs.length-1 && NET.droppedSeq===d.seq){ scene.remove(S.held.mesh); S.held = null; }
+    }
+    c.tgt = a.slice(2);
+  });
+  // 들고 있는 의자
+  const mine = myTurn();
+  if (d.held && d.ph==='aim' && d.seq!==NET.droppedSeq){
+    const [ki, pal, x, y, z, qx, qy, qz, qw] = d.held, kind = KINDS[ki];
+    if (d.seq!==NET.seq || !S.held){
+      if (S.held) scene.remove(S.held.mesh);
+      NET.seq = d.seq;
+      S.held = { kind, pal, mesh:makeMesh(kind, pal), x, y, z, q:new THREE.Quaternion(qx, qy, qz, qw) };
+      S.held.mesh.position.set(x, y, z); S.held.mesh.quaternion.copy(S.held.q);
+      showInfo();
+    }
+    if (!mine){ Object.assign(S.held, { x, y, z }); S.held.q.set(qx, qy, qz, qw); }
+  } else if (S.held && (d.ph!=='aim' || !d.held) && NET.droppedSeq!==d.seq){ scene.remove(S.held.mesh); S.held = null; }
+  // 단계
+  const was = S.phase;
+  if (d.ph==='aim' && d.seq===NET.droppedSeq) S.phase = 'settle';
+  else S.phase = d.ph;
+  if (S.phase==='aim'){ setDropEnabled(mine); $('info').hidden = !S.held; if (was!=='aim' || turnChanged){ showTurn(); toast(mine ? '내 차례' : `${nameAt(S.turn)} 차례`, .9); } }
+  else { setDropEnabled(false); $('info').hidden = true; }
+  if (S.phase==='falling' && was!=='falling') toast('떨어졌어요', 1.4);
+  if (S.phase==='over' && was!=='over') showOver();
+  showTurn();
+}
+function followHost(dt){   // 받은 자리로 부드럽게
+  const k = Math.min(1, dt*14);
+  for (const c of S.chairs){
+    if (!c.tgt) continue;
+    const t = c.rb.translation(), r = c.rb.rotation(), g = c.tgt;
+    c.rb.setNextKinematicTranslation({ x:t.x+(g[0]-t.x)*k, y:t.y+(g[1]-t.y)*k, z:t.z+(g[2]-t.z)*k });
+    _q.set(r.x, r.y, r.z, r.w).slerp(new THREE.Quaternion(g[3], g[4], g[5], g[6]), k);
+    c.rb.setNextKinematicRotation({ x:_q.x, y:_q.y, z:_q.z, w:_q.w });
+  }
+}
+
+$('bOnline').addEventListener('click', () => openNet());
+$('bHost').addEventListener('click', netHost);
+$('bJoin').addEventListener('click', netJoin);
+$('nCode').addEventListener('keydown', e => { if (e.key==='Enter') netJoin(); });
+$('bNetStart').addEventListener('click', netStart);
+$('bNetBack').addEventListener('click', () => { netLeave(); $('ovNet').hidden = true; $('ovHome').hidden = false; });
+$('bCopy').addEventListener('click', async () => {
+  const url = location.origin + location.pathname + '?room=' + NET.code;
+  try { await navigator.clipboard.writeText(url); netMsg('링크를 복사했어요'); } catch { netMsg(url); }
+});
 
 /* ── 매 프레임 ── */
 const box3 = new THREE.Box3();
 let last = performance.now(), acc = 0;
-function frame(now){
-  const dt = Math.min(.05, (now-last)/1000); last = now;
+function frame(now, bg){
+  const dt = Math.min(bg ? 1 : .05, (now-last)/1000); last = now;
 
-  acc += dt; let n = 0;
-  while (acc >= STEP && n < 6){ world.step(); acc -= STEP; n++; }
-  if (n === 6) acc = 0;
+  if (isGuest()) followHost(dt);
+  acc += dt; let n = 0; const cap = bg ? 120 : 6;
+  while (acc >= STEP && n < cap){ world.step(); acc -= STEP; n++; }
+  if (n === cap) acc = 0;
 
   let top = TOP;
   for (const c of S.chairs){
@@ -753,13 +1038,21 @@ function frame(now){
   S.maxY = top;
 
   if (S.phase==='aim' && S.held){
-    if (rotHold.axis){ rotHold.t += dt; if (rotHold.t > .25) rotateHeld(rotHold.axis, rotHold.dir*ROT_SPEED*dt); }
-    if (mouseNDC && !isTouch) aimFromNDC(mouseNDC.x, mouseNDC.y);
-    const h = S.held, want = landingY(h.kind, h.x, h.z, h.q) + GAP;
-    h.y += (want - h.y) * Math.min(1, dt*14);
-    h.mesh.position.set(h.x, h.y, h.z); h.mesh.quaternion.copy(h.q);
+    const h = S.held;
+    if (myTurn()){
+      if (rotHold.axis){ rotHold.t += dt; if (rotHold.t > .25) rotateHeld(rotHold.axis, rotHold.dir*ROT_SPEED*dt); }
+      if (mouseNDC && !isTouch) aimFromNDC(mouseNDC.x, mouseNDC.y);
+      const want = landingY(h.kind, h.x, h.z, h.q) + GAP;
+      h.y += (want - h.y) * Math.min(1, dt*14);
+      h.mesh.position.set(h.x, h.y, h.z); h.mesh.quaternion.copy(h.q);
+      if (isGuest()) sendAim(now);
+    } else {   // 남의 차례: 받은 자세로 옮겨 그린다
+      landingY(h.kind, h.x, h.z, h.q);
+      h.mesh.position.lerp(_v.set(h.x, h.y, h.z), Math.min(1, dt*16)); h.mesh.quaternion.slerp(h.q, Math.min(1, dt*16));
+    }
     showPins(h);
   } else showPins(null);
+  if (!isGuest()){   // 참가자는 멈춤·떨어짐을 판정하지 않는다. 방장이 보낸 단계를 따른다
   if (S.phase==='settle'){
     S.settleT += dt;
     S.quietT = quiet() ? S.quietT+dt : 0;
@@ -767,23 +1060,29 @@ function frame(now){
   }
   if ((S.phase==='aim' || S.phase==='settle') && S.chairs.some(c => comY(c) < TOP-.15)) fell();
   if (S.phase==='falling'){ S.overT -= dt; if (S.overT <= 0) showOver(); }
+  }
+  if (NET && NET.role==='host' && S.phase!=='home' && now - NET.lastSt > 50){ NET.lastSt = now; broadcast(stateMsg()); }
   if (S.phase!=='aim') updateStats();
   else $('sHeight').textContent = fmtH(S.maxY-TOP);
 
   if (S.toastT > 0){ S.toastT -= dt; if (S.toastT <= 0) $('toast').classList.remove('on'); }
   if (orbitDir) cam.theta += orbitDir*dt*1.4;
+  if (bg) return;
   placeCamera(dt);
   renderer.render(scene, camera);
   requestAnimationFrame(frame);
 }
+// 방장 창이 뒤로 가면 화면 갱신이 멈춘다. 물리와 전송은 느린 타이머로라도 이어 간다
+setInterval(() => { if (document.hidden && NET && NET.role==='host') frame(performance.now(), true); }, 100);
 
 { let m='basic'; try { m=localStorage.getItem('chair3d.mode')||'basic'; } catch {} setMode(MODES[m]?m:'basic'); }
 demo();
 $('bSolo').disabled = false; $('bSolo').textContent = '혼자 하기';
-$('bVs').disabled = false;
+$('bVs').disabled = false; $('bOnline').disabled = false;
+{ const rc = new URLSearchParams(location.search).get('room'); if (rc) openNet(rc.toUpperCase().slice(0,4)); }
 requestAnimationFrame(frame);
 
-if (new URLSearchParams(location.search).has('t')) window.__t = { get firstHit(){return firstHit}, get firstPose(){return firstPose}, S, TYPES, makeMesh, scene, world, landingY, drop, start, holdStart, holdEnd, rotateHeld, setHeldXZ, cam, comY, TOP };
+if (new URLSearchParams(location.search).has('t')) window.__t = { get NET(){return NET}, netStart, get firstHit(){return firstHit}, get firstPose(){return firstPose}, S, TYPES, makeMesh, scene, world, landingY, drop, start, holdStart, holdEnd, rotateHeld, setHeldXZ, cam, comY, TOP };
 </script>
 </body>
 </html>
