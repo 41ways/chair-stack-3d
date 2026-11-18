@@ -1,0 +1,7 @@
+# 의자 쌓기 3D — Cloudflare Workers 정적 자산만(서버 코드 없음)
+name = "chair-stack-3d"
+compatibility_date = "2026-08-01"
+workers_dev = true
+
+[assets]
+directory = "."

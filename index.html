@@ -1,0 +1,694 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<title>의자 쌓기 3D</title>
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="description" content="의자를 하나씩 들어 탑 위 빈자리에 얹는 3D 물리 게임. 돌리고 기울여 구석구석 끼워 넣고, 하나라도 떨어지면 끝.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Jua&family=Gowun+Dodum&family=IBM+Plex+Mono:wght@500&display=swap">
+<style>
+/* Layout: 화면 전체가 3D 전시장. 위 기록줄, 아래 조작판, 처음·결과 화면은 가운데에 겹쳐 뜬다 */
+:root{
+  --wall:#e7ece5; --floor:#d3cbbd;
+  --ink:#22302a; --ink-soft:#56645d; --line:#22302a1f;
+  --accent:#d4573a; --accent-ink:#ffffff;
+  --panel:#fbfbf8; --panel-line:#22302a1a; --shadow:0 10px 30px #22302a1c;
+  --font-display:"Jua","Gowun Dodum",system-ui,sans-serif;
+  --font-body:"Gowun Dodum",system-ui,-apple-system,"Apple SD Gothic Neo",sans-serif;
+  --font-mono:"IBM Plex Mono",ui-monospace,Menlo,monospace;
+}
+*,*::before,*::after{box-sizing:border-box}
+[hidden]{display:none!important}
+html,body{height:100%}
+body.home .gs{display:none}
+body{margin:0;font-size:14px;background:var(--wall);color:var(--ink);font-family:var(--font-body);overflow:hidden;-webkit-tap-highlight-color:transparent;touch-action:none;user-select:none;-webkit-user-select:none}
+button{font:inherit;color:inherit;cursor:pointer}
+button:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+#cv{position:fixed;inset:0;width:100%;height:100%;display:block;touch-action:none}
+
+.hud{position:fixed;left:0;right:0;top:0;display:flex;align-items:center;gap:18px;padding:12px max(16px,env(safe-area-inset-right)) 0 max(16px,env(safe-area-inset-left));pointer-events:none}
+.logo{font-family:var(--font-display);font-size:24px;line-height:1;background:none;border:0;padding:0;pointer-events:auto}
+.logo small{font-size:15px;color:var(--accent);margin-left:2px}
+.stat .k{font-size:12px;color:var(--ink-soft)}
+.stat .v{font-family:var(--font-display);font-size:19px;font-variant-numeric:tabular-nums}
+.hud .grow{flex:1}
+.turn{font-family:var(--font-display);font-size:14px;padding:4px 12px;border-radius:999px;background:var(--accent);color:var(--accent-ink)}
+.ver{font-family:var(--font-mono);font-size:11px;color:var(--ink-soft)}
+
+.info{position:fixed;left:50%;top:58px;transform:translateX(-50%);text-align:center;pointer-events:none;white-space:nowrap}
+.info .now{font-family:var(--font-display);font-size:18px}
+.info .note{font-size:13px;color:var(--ink-soft)}
+.info .next{font-size:12px;color:var(--ink-soft);margin-top:2px}
+.toast{position:fixed;left:50%;top:38%;transform:translate(-50%,-50%);font-family:var(--font-display);font-size:30px;color:var(--accent);pointer-events:none;opacity:0;transition:opacity .25s}
+.toast.on{opacity:1}
+
+.pad{position:fixed;left:0;right:0;bottom:0;display:flex;justify-content:center;align-items:flex-end;gap:10px;flex-wrap:wrap;padding:0 16px max(14px,env(safe-area-inset-bottom))}
+.grp{display:flex;flex-direction:column;align-items:center;gap:4px;background:var(--panel);border:1px solid var(--panel-line);border-radius:14px;padding:6px 8px 8px;box-shadow:var(--shadow)}
+.grp .k{font-size:11px;color:var(--ink-soft)}
+.grp .row{display:flex;gap:6px}
+.pb{width:46px;height:42px;border-radius:10px;border:1px solid var(--line);background:#fff;font-size:20px;line-height:1;display:grid;place-items:center;touch-action:none}
+.pb:active,.pb.on{background:var(--wall)}
+.pb.wide{width:auto;padding:0 12px;font-size:14px}
+.drop{height:62px;padding:0 26px;border-radius:16px;border:0;background:var(--accent);color:var(--accent-ink);font-family:var(--font-display);font-size:22px;box-shadow:var(--shadow)}
+.drop:disabled{opacity:.45;cursor:default}
+.keys{position:fixed;right:16px;top:44px;font-size:12px;color:var(--ink-soft);text-align:right;line-height:1.6;pointer-events:none}
+.keys b{font-family:var(--font-mono);font-weight:500;color:var(--ink);background:var(--panel);border:1px solid var(--panel-line);border-radius:4px;padding:0 4px}
+
+.ov{position:fixed;inset:0;display:grid;place-items:center;padding:16px;background:#e7ece5b3}
+.card{width:min(460px,100%);background:var(--panel);border:1px solid var(--panel-line);border-radius:20px;padding:26px 24px 20px;box-shadow:var(--shadow);text-align:center;max-height:100%;overflow:auto}
+.card h1{font-family:var(--font-display);font-size:38px;font-weight:400;margin:0 0 6px}
+.card h1 small{color:var(--accent)}
+.card h2{font-family:var(--font-display);font-size:28px;font-weight:400;margin:0 0 6px}
+.card p{margin:6px 0;color:var(--ink-soft);line-height:1.55}
+.btns{display:flex;flex-direction:column;gap:8px;margin:18px 0 8px}
+.big{height:52px;border-radius:14px;border:0;background:var(--accent);color:var(--accent-ink);font-family:var(--font-display);font-size:20px}
+.big.sub{background:var(--wall);color:var(--ink)}
+.big:disabled{opacity:.5;cursor:default}
+.np{display:flex;gap:6px;justify-content:center;align-items:center;margin-top:2px}
+.np span{font-size:13px;color:var(--ink-soft);margin-right:4px}
+.np button{width:44px;height:36px;border-radius:10px;border:1px solid var(--line);background:#fff;font-family:var(--font-display);font-size:16px}
+.np button.on{background:var(--ink);color:#fff;border-color:var(--ink)}
+.how{text-align:left;font-size:13px;color:var(--ink-soft);background:var(--wall);border-radius:12px;padding:10px 14px;margin:12px 0 4px;line-height:1.7}
+.how b{color:var(--ink);font-weight:400;font-family:var(--font-display)}
+.best{font-size:13px;color:var(--ink-soft);margin-top:8px}
+.res{font-family:var(--font-display);font-size:44px;margin:4px 0;font-variant-numeric:tabular-nums}
+.res small{font-size:18px;color:var(--ink-soft)}
+.foot{position:relative;margin-top:14px}
+.vlog summary{list-style:none;cursor:pointer;font-family:var(--font-mono);font-size:11px;color:var(--ink-soft)}
+.vlog summary::-webkit-details-marker{display:none}
+.vlog ol{list-style:none;margin:8px 0 0;padding:10px 12px;text-align:left;background:var(--wall);border-radius:12px;font-size:12px;line-height:1.55}
+.vlog li{display:flex;gap:8px;margin:3px 0}
+.vlog li b{font-family:var(--font-mono);font-weight:500;flex:none}
+
+@media (max-width:720px){
+  .hud{gap:12px} .logo{font-size:20px} .stat .v{font-size:16px} .keys{display:none}
+  .pb{width:42px;height:40px;font-size:18px}
+  .drop{height:54px;padding:0 20px;font-size:19px}
+  .info{top:52px}
+}
+@media (pointer:coarse){ .keys{display:none} }
+</style>
+</head>
+<body class="home">
+<canvas id="cv"></canvas>
+
+<div class="hud" id="hud">
+  <button class="logo" id="home" title="처음으로">의자 쌓기 <small>3D</small></button>
+  <div class="stat gs"><div class="k">쌓은 의자</div><div class="v" id="sCount">0</div></div>
+  <div class="stat gs"><div class="k">높이</div><div class="v" id="sHeight">0.00 m</div></div>
+  <div class="stat gs" id="bestBox"><div class="k">최고</div><div class="v" id="sBest">-</div></div>
+  <div class="grow"></div>
+  <span class="turn" id="turn" hidden></span>
+  <span class="ver" id="verTop"></span>
+</div>
+
+<div class="info" id="info" hidden>
+  <div class="now" id="iNow"></div>
+  <div class="note" id="iNote"></div>
+  <div class="next" id="iNext"></div>
+</div>
+<div class="toast" id="toast"></div>
+
+<div class="pad" id="pad" hidden>
+  <div class="grp"><div class="k">돌리기</div><div class="row">
+    <button class="pb" data-rot="yaw:1" aria-label="왼쪽으로 돌리기">⟲</button>
+    <button class="pb" data-rot="yaw:-1" aria-label="오른쪽으로 돌리기">⟳</button></div></div>
+  <div class="grp"><div class="k">앞뒤로 눕히기</div><div class="row">
+    <button class="pb" data-rot="pitch:-1" aria-label="앞으로 눕히기">↑</button>
+    <button class="pb" data-rot="pitch:1" aria-label="뒤로 눕히기">↓</button></div></div>
+  <div class="grp"><div class="k">옆으로 눕히기</div><div class="row">
+    <button class="pb" data-rot="roll:1" aria-label="왼쪽으로 눕히기">←</button>
+    <button class="pb" data-rot="roll:-1" aria-label="오른쪽으로 눕히기">→</button></div></div>
+  <div class="grp"><div class="k">자세·시점</div><div class="row">
+    <button class="pb wide" id="upright">바로</button>
+    <button class="pb" data-orbit="-1" aria-label="시점 왼쪽으로">◀</button>
+    <button class="pb" data-orbit="1" aria-label="시점 오른쪽으로">▶</button></div></div>
+  <button class="drop" id="drop">놓기</button>
+</div>
+<div class="keys" id="keys" hidden>
+  마우스로 옮기고 <b>클릭</b> 놓기 · <b>오른쪽 드래그</b> 시점 · <b>휠</b> 확대<br>
+  <b>Q</b><b>E</b> 돌리기 · <b>W</b><b>S</b> 앞뒤 · <b>A</b><b>D</b> 옆 · <b>R</b> 바로 · <b>Space</b> 놓기
+</div>
+
+<div class="ov" id="ovHome">
+  <div class="card">
+    <h1>의자 쌓기 <small>3D</small></h1>
+    <p>의자를 하나씩 들어 탑 위 빈자리에 얹어요.<br>돌리고 눕혀서 구석구석 끼워 넣고, 하나라도 받침대에서 떨어지면 끝이에요.</p>
+    <div class="btns">
+      <button class="big" id="bSolo" disabled>불러오는 중…</button>
+      <button class="big sub" id="bVs" disabled>한 화면에서 같이 하기</button>
+      <div class="np" id="np"><span>사람 수</span><button data-n="2" class="on">2</button><button data-n="3">3</button><button data-n="4">4</button></div>
+    </div>
+    <div class="how">
+      <b>옮기기</b> 마우스를 움직이거나 한 손가락으로 끌기<br>
+      <b>돌리기·눕히기</b> 아래 버튼, 키보드 Q E · W S · A D<br>
+      <b>놓기</b> 클릭, Space, 놓기 버튼. 의자는 바로 아래 닿을 곳에서 10cm 위에 떠 있다가 떨어져요<br>
+      <b>시점</b> 오른쪽 드래그, 두 손가락, ◀ ▶ 버튼
+    </div>
+    <div class="best" id="bestLine"></div>
+    <div class="foot"><details class="vlog"><summary id="verFoot"></summary><ol id="verList"></ol></details></div>
+  </div>
+</div>
+
+<div class="ov" id="ovOver" hidden>
+  <div class="card">
+    <h2 id="oTitle">떨어졌어요</h2>
+    <p id="oSub"></p>
+    <div class="res" id="oRes"></div>
+    <p id="oBest"></p>
+    <div class="btns">
+      <button class="big" id="bAgain">다시 하기</button>
+      <button class="big sub" id="bHome">처음으로</button>
+    </div>
+  </div>
+</div>
+
+<script type="importmap">
+{ "imports": {
+  "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
+  "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"
+} }
+</script>
+<script type="module">
+import * as THREE from 'three';
+import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.js';
+import RAPIER from 'https://cdn.jsdelivr.net/npm/@dimforge/rapier3d-compat@0.12.0/rapier.es.js';
+
+const $ = id => document.getElementById(id);
+
+/* ── 버전 ── 새 버전은 맨 위에 한 줄, CHANGELOG.md, git 태그 vX.Y */
+const VERSIONS = [
+  ['1.0','처음 공개. 의자 다섯 종류(나무 의자·학교 의자·네모 스툴·팔걸이 소파·긴 벤치), 돌리기·앞뒤·옆으로 눕히기, 혼자 하기와 한 화면 2~4명'],
+];
+const VERSION = 'v' + VERSIONS[0][0];
+$('verTop').textContent = VERSION; $('verFoot').textContent = VERSION + ' 바뀐 점';
+$('verList').innerHTML = VERSIONS.map(([v,t]) => `<li><b>v${v}</b><span>${t}</span></li>`).join('');
+
+/* ── 크기(미터) ── */
+const TOP = 0.9;      // 받침대 윗면 높이
+const HALF = 0.5;     // 받침대 윗면 반 너비(1m × 1m)
+const GAP = 0.10;     // 놓기 전 떠 있는 높이
+const STEP = 1/120;
+const DENS = { frame:650, seat:650, metal:2500, cushion:90, fabric:140 };
+const FRIC = { frame:.7, seat:.7, metal:.45, cushion:.9, fabric:.85 };
+
+/* ── 의자 모양 ── 원점은 다리 바닥 가운데, y 위쪽, z 앞쪽 */
+const Q0 = new THREE.Quaternion();
+function box(w,h,d,x,y,z,m,rx=0,ry=0,rz=0){ return {s:'box',w,h,d,x,y,z,m,q:new THREE.Quaternion().setFromEuler(new THREE.Euler(rx,ry,rz))}; }
+function cyl(r,h,x,y,z,m){ return {s:'cyl',r,h,x,y,z,m,q:Q0.clone()}; }
+function rod(r,a,b,m){
+  const A=new THREE.Vector3(...a), B=new THREE.Vector3(...b), d=B.clone().sub(A), len=d.length();
+  const mid=A.clone().add(B).multiplyScalar(.5);
+  return {s:'cyl',r,h:len,x:mid.x,y:mid.y,z:mid.z,m,q:new THREE.Quaternion().setFromUnitVectors(new THREE.Vector3(0,1,0),d.normalize())};
+}
+
+const TYPES = {
+  wood: { name:'나무 의자', w:30, note:'등받이 때문에 앉는 자리가 좁아요',
+    pals:[{frame:'#c58b52',seat:'#c58b52'},{frame:'#8a5a3a',seat:'#a26b45'},{frame:'#efe9dc',seat:'#d4573a'}],
+    parts:[
+      ...[[-1,1],[1,1],[-1,-1],[1,-1]].map(([sx,sz])=>box(.035,.44,.035, sx*.185,.22,sz*.175,'frame')),
+      box(.42,.035,.40, 0,.4575,0,'seat'),
+      box(.035,.46,.035,-.185,.705,-.175,'frame'), box(.035,.46,.035,.185,.705,-.175,'frame'),
+      box(.40,.09,.025, 0,.88,-.175,'seat'), box(.40,.04,.02, 0,.70,-.175,'frame'),
+      box(.025,.025,.33,-.185,.14,0,'frame'), box(.025,.025,.33,.185,.14,0,'frame'),
+    ]},
+  school: { name:'학교 의자', w:25, note:'가볍고 다리가 가는 쇠파이프예요',
+    pals:[{metal:'#4a5560',seat:'#d9a86c'},{metal:'#2f6f9f',seat:'#e2b980'},{metal:'#5b8a4a',seat:'#d9a86c'}],
+    parts:[
+      rod(.011,[-.19,0,.17],[-.19,.44,.17],'metal'), rod(.011,[.19,0,.17],[.19,.44,.17],'metal'),
+      rod(.011,[-.19,0,-.19],[-.19,.44,-.16],'metal'), rod(.011,[.19,0,-.19],[.19,.44,-.16],'metal'),
+      rod(.011,[-.19,.44,-.16],[-.18,.82,-.21],'metal'), rod(.011,[.19,.44,-.16],[.18,.82,-.21],'metal'),
+      rod(.011,[-.19,.44,.17],[-.19,.44,-.16],'metal'), rod(.011,[.19,.44,.17],[.19,.44,-.16],'metal'),
+      rod(.009,[-.19,.12,.17],[.19,.12,.17],'metal'),
+      box(.40,.016,.37, 0,.459,0,'seat'),
+      box(.38,.17,.014, 0,.71,-.21,'seat',-.13),
+    ]},
+  stool: { name:'네모 스툴', w:20, note:'윗면이 작고 다리가 벌어져 있어요',
+    pals:[{frame:'#c58b52',seat:'#2f8f83'},{frame:'#8a5a3a',seat:'#e0b13a'},{frame:'#e9e4d8',seat:'#d4573a'}],
+    parts:(()=>{ const p=[box(.34,.04,.34,0,.62,0,'seat')], ring=[];
+      for (let k=0;k<4;k++){ const a=Math.PI/4+k*Math.PI/2, c=Math.cos(a), s=Math.sin(a);
+        p.push(rod(.017,[.21*c,0,.21*s],[.16*c,.60,.16*s],'frame')); ring.push([.193*c,.2,.193*s]); }
+      for (let k=0;k<4;k++) p.push(rod(.009,ring[k],ring[(k+1)%4],'frame'));
+      return p; })()},
+  arm: { name:'팔걸이 소파', w:12, note:'무겁고 넓어서 받침이 돼요',
+    pals:[{frame:'#6b4a33',fabric:'#3c6db0',cushion:'#5f8bcb'},{frame:'#6b4a33',fabric:'#7a8b5c',cushion:'#93a472'},{frame:'#4a3526',fabric:'#c4643f',cushion:'#d77f5c'}],
+    parts:[
+      ...[[-1,1],[1,1],[-1,-1],[1,-1]].map(([sx,sz])=>box(.05,.08,.05, sx*.3,.04,sz*.3,'frame')),
+      box(.74,.22,.72, 0,.19,0,'fabric'),
+      box(.52,.10,.56, 0,.35,.06,'cushion'),
+      box(.74,.46,.16, 0,.53,-.28,'fabric'),
+      box(.11,.24,.72,-.315,.42,0,'fabric'), box(.11,.24,.72,.315,.42,0,'fabric'),
+    ]},
+  bench: { name:'긴 벤치', w:13, note:'길어서 두 자리를 잇기 좋아요',
+    pals:[{frame:'#8a5a3a',seat:'#c58b52'},{frame:'#3e4a5d',seat:'#d9b382'}],
+    parts:[
+      box(1.0,.04,.30, 0,.45,0,'seat'),
+      box(.04,.43,.27,-.42,.215,0,'frame'), box(.04,.43,.27,.42,.215,0,'frame'),
+      box(.84,.06,.025, 0,.18,0,'frame'),
+    ]},
+};
+const KINDS = Object.keys(TYPES);
+
+/* 부품마다 질량 중심과 판정용 모양을 미리 계산 */
+for (const k of KINDS){
+  const T = TYPES[k]; let M=0; const c=new THREE.Vector3();
+  for (const p of T.parts){
+    p.vol = p.s==='box' ? p.w*p.h*p.d : Math.PI*p.r*p.r*p.h;
+    const m = p.vol*DENS[p.m]; M+=m; c.addScaledVector(new THREE.Vector3(p.x,p.y,p.z), m);
+  }
+  T.mass=M; T.com=c.multiplyScalar(1/M);
+}
+
+/* ── 렌더러·장면 ── */
+const cv = $('cv');
+const renderer = new THREE.WebGLRenderer({ canvas:cv, antialias:true });
+renderer.setPixelRatio(Math.min(2, devicePixelRatio));
+renderer.shadowMap.enabled = true;
+renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+const scene = new THREE.Scene();
+scene.background = new THREE.Color('#e7ece5');
+scene.fog = new THREE.Fog('#e7ece5', 7, 16);
+const camera = new THREE.PerspectiveCamera(45, 1, .05, 60);
+
+scene.add(new THREE.HemisphereLight('#ffffff', '#c9bfae', 1.1));
+const sun = new THREE.DirectionalLight('#fffaf0', 1.9);
+sun.castShadow = true; sun.shadow.mapSize.set(2048,2048);
+Object.assign(sun.shadow.camera, { left:-1.8, right:1.8, top:1.8, bottom:-1.8, near:.5, far:14 });
+sun.shadow.bias = -.0004; sun.shadow.normalBias = .01;
+scene.add(sun, sun.target);
+
+const floorMesh = new THREE.Mesh(new THREE.CircleGeometry(14, 64), new THREE.MeshStandardMaterial({ color:'#d3cbbd', roughness:.95 }));
+floorMesh.rotation.x = -Math.PI/2; floorMesh.receiveShadow = true; scene.add(floorMesh);
+const plinth = new THREE.Mesh(new RoundedBoxGeometry(HALF*2, TOP, HALF*2, 3, .015), new THREE.MeshStandardMaterial({ color:'#fbfbf8', roughness:.6 }));
+plinth.position.y = TOP/2; plinth.castShadow = plinth.receiveShadow = true; scene.add(plinth);
+
+const matCache = {};
+function mat(hex, kind){
+  const key = hex+kind;
+  if (!matCache[key]) matCache[key] = new THREE.MeshStandardMaterial({ color:hex,
+    roughness: kind==='metal'?.35 : kind==='fabric'||kind==='cushion'?.95 : .65,
+    metalness: kind==='metal'?.55 : 0 });
+  return matCache[key];
+}
+const geoCache = {};
+function geoOf(p){
+  const key = p.s==='box' ? `b${p.w},${p.h},${p.d}` : `c${p.r},${p.h}`;
+  if (!geoCache[key]) geoCache[key] = p.s==='box'
+    ? new RoundedBoxGeometry(p.w, p.h, p.d, 2, Math.min(.012, Math.min(p.w,p.h,p.d)*.3))
+    : new THREE.CylinderGeometry(p.r, p.r, p.h, p.r>.05?40:12);
+  return geoCache[key];
+}
+function makeMesh(kind, palIdx){
+  const T = TYPES[kind], pal = T.pals[palIdx % T.pals.length], g = new THREE.Group();
+  for (const p of T.parts){
+    const m = new THREE.Mesh(geoOf(p), mat(pal[p.m], p.m));
+    m.position.set(p.x,p.y,p.z); m.quaternion.copy(p.q);
+    m.castShadow = m.receiveShadow = true; g.add(m);
+  }
+  scene.add(g); return g;
+}
+
+/* ── 물리(Rapier) ── */
+await RAPIER.init();
+/* 가는 막대(원기둥)는 다각기둥으로 판정한다. Rapier 원기둥 접촉은 한 점이라 저절로 미끄러진다.
+   넓은 면은 상자로만 만든다. 다각기둥 윗면은 삼각형으로 쪼개져 위에 얹은 것이 계속 흔들린다 */
+function prism(r, h, n){
+  const a = new Float32Array(n*6);
+  for (let i=0;i<n;i++){ const t=i/n*Math.PI*2, x=r*Math.cos(t), z=r*Math.sin(t);
+    a.set([x,-h/2,z, x,h/2,z], i*6); }
+  return a;
+}
+const world = new RAPIER.World({ x:0, y:-9.81, z:0 });
+world.timestep = STEP;
+{
+  const ground = world.createRigidBody(RAPIER.RigidBodyDesc.fixed());
+  world.createCollider(RAPIER.ColliderDesc.cuboid(20,.05,20).setTranslation(0,-.05,0).setFriction(.8), ground);
+  world.createCollider(RAPIER.ColliderDesc.cuboid(HALF, TOP/2, HALF).setTranslation(0,TOP/2,0).setFriction(.8), ground);
+  world.updateSceneQueries();
+}
+for (const k of KINDS) for (const p of TYPES[k].parts){
+  if (p.s==='cyl') p.pts = prism(p.r, p.h, p.r>.05 ? 20 : 8);
+  p.shape = p.s==='box' ? new RAPIER.Cuboid(p.w/2,p.h/2,p.d/2) : new RAPIER.ConvexPolyhedron(p.pts);
+}
+
+function addBody(kind, pos, q){
+  const rb = world.createRigidBody(RAPIER.RigidBodyDesc.dynamic()
+    .setTranslation(pos.x,pos.y,pos.z).setRotation({x:q.x,y:q.y,z:q.z,w:q.w})
+    .setCcdEnabled(true).setAngularDamping(.05));
+  for (const p of TYPES[kind].parts){
+    const d = p.s==='box' ? RAPIER.ColliderDesc.cuboid(p.w/2,p.h/2,p.d/2) : RAPIER.ColliderDesc.convexHull(p.pts);
+    d.setTranslation(p.x,p.y,p.z).setRotation({x:p.q.x,y:p.q.y,z:p.q.z,w:p.q.w})
+     .setDensity(DENS[p.m]).setFriction(FRIC[p.m]).setRestitution(.05);
+    world.createCollider(d, rb);
+  }
+  world.updateSceneQueries();   // 다음 판정(landingY)에 바로 보이게
+  return rb;
+}
+
+/* 의자를 (x, z)에서 똑바로 내렸을 때 다리 바닥 원점이 닿는 높이 */
+const _v=new THREE.Vector3(), _q=new THREE.Quaternion();
+function landingY(kind, x, z, q){
+  const startY = S.maxY + 2.5; let best = Infinity;
+  for (const p of TYPES[kind].parts){
+    _v.set(p.x,p.y,p.z).applyQuaternion(q); _q.copy(q).multiply(p.q);
+    const hit = world.castShape({x:x+_v.x,y:startY+_v.y,z:z+_v.z}, {x:_q.x,y:_q.y,z:_q.z,w:_q.w}, {x:0,y:-1,z:0}, p.shape, 30, true);
+    if (hit){ const t = hit.toi ?? hit.time_of_impact; if (t<best) best=t; }
+  }
+  return best===Infinity ? 0 : startY - best;
+}
+
+/* ── 게임 상태 ── */
+const S = {
+  phase:'home', chairs:[], held:null, next:null,
+  count:0, maxY:TOP, np:1, turn:0, dropper:0,
+  settleT:0, quietT:0, overT:0, toastT:0,
+};
+const pick = () => { const tot=KINDS.reduce((a,k)=>a+TYPES[k].w,0); let r=Math.random()*tot;
+  for (const k of KINDS){ r-=TYPES[k].w; if (r<0) return k; } return KINDS[0]; };
+const newSpec = () => { const k=pick(); return { kind:k, pal:Math.floor(Math.random()*TYPES[k].pals.length) }; };
+
+function clearChairs(){
+  for (const c of S.chairs){ world.removeRigidBody(c.rb); scene.remove(c.mesh); }
+  S.chairs.length = 0;
+  if (S.held){ scene.remove(S.held.mesh); S.held=null; }
+}
+function spawnHeld(){
+  const sp = S.next || newSpec(); S.next = newSpec();
+  const yaw = (Math.random()*2-1)*Math.PI;
+  S.held = { ...sp, mesh:makeMesh(sp.kind, sp.pal), x:0, z:0, y:S.maxY+.3,
+             q:new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0,1,0), yaw), yaw };
+  S.held.mesh.position.set(0, S.held.y, 0); S.held.mesh.quaternion.copy(S.held.q);
+  showInfo();
+}
+function comY(c){ const t=c.rb.translation(), r=c.rb.rotation();
+  _q.set(r.x,r.y,r.z,r.w); _v.copy(TYPES[c.kind].com).applyQuaternion(_q); return t.y+_v.y; }
+
+/* ── 화면 문구 ── */
+const isTouch = matchMedia('(pointer:coarse)').matches;
+function bestGet(){ try { return JSON.parse(localStorage.getItem('chair3d.best')||'null'); } catch { return null; } }
+function bestSet(b){ try { localStorage.setItem('chair3d.best', JSON.stringify(b)); } catch {} }
+function fmtH(h){ return Math.max(0,h).toFixed(2)+' m'; }
+function showBest(){
+  const b = bestGet();
+  $('sBest').textContent = b ? `${b.n}개` : '-';
+  $('bestLine').textContent = b ? `혼자 하기 최고 기록 ${b.n}개 · ${fmtH(b.h)}` : '';
+}
+function showInfo(){
+  if (!S.held){ $('info').hidden = true; return; }
+  const T = TYPES[S.held.kind];
+  $('info').hidden = false;
+  $('iNow').textContent = T.name;
+  $('iNote').textContent = T.note;
+  $('iNext').textContent = '다음: ' + TYPES[S.next.kind].name;
+}
+function showTurn(){
+  const t = $('turn');
+  if (S.np>1){ t.hidden=false; t.textContent = `${S.turn+1}P 차례`; } else t.hidden = true;
+}
+function toast(msg, sec=1.2){ const t=$('toast'); t.textContent=msg; t.classList.add('on'); S.toastT=sec; }
+function updateStats(){ $('sCount').textContent = S.count; $('sHeight').textContent = fmtH(S.maxY-TOP); }
+
+/* ── 진행 ── */
+function start(np){
+  clearChairs(); S.np=np; S.turn=0; S.count=0; S.maxY=TOP; S.next=null;
+  document.body.classList.remove('home');
+  $('ovHome').hidden = true; $('ovOver').hidden = true;
+  $('pad').hidden = false; $('keys').hidden = isTouch; $('bestBox').hidden = np>1;
+  cam.theta = .6; cam.phi = 1.0; cam.dist = 3.2;
+  S.phase = 'aim'; spawnHeld(); showTurn(); updateStats(); setDropEnabled(true);
+}
+function goHome(){
+  clearChairs(); S.phase='home'; S.maxY=TOP; document.body.classList.add('home');
+  $('ovOver').hidden = true; $('ovHome').hidden = false; $('pad').hidden = true; $('keys').hidden = true;
+  $('info').hidden = true; $('turn').hidden = true; $('bestBox').hidden = false;
+  showBest(); updateStats(); demo();
+}
+function setDropEnabled(on){ $('drop').disabled = !on; }
+
+function drop(){
+  if (S.phase!=='aim' || !S.held) return;
+  const h = S.held;
+  const rb = addBody(h.kind, {x:h.x, y:h.y, z:h.z}, h.q);
+  S.chairs.push({ kind:h.kind, pal:h.pal, rb, mesh:h.mesh });
+  S.held = null; S.dropper = S.turn;
+  S.phase = 'settle'; S.settleT = 0; S.quietT = 0;
+  $('info').hidden = true; setDropEnabled(false);
+}
+function quiet(){
+  for (const c of S.chairs){ const v=c.rb.linvel(), w=c.rb.angvel();
+    if (Math.hypot(v.x,v.y,v.z)>.03 || Math.hypot(w.x,w.y,w.z)>.12) return false; }
+  return true;
+}
+function settled(){
+  S.count++; updateStats();
+  if (S.np>1){ S.turn = (S.turn+1)%S.np; showTurn(); toast(`${S.turn+1}P 차례`, .9); }
+  S.phase = 'aim'; spawnHeld(); setDropEnabled(true);
+}
+function fell(){
+  S.phase = 'falling'; S.overT = 1.6; setDropEnabled(false);
+  if (S.held){ scene.remove(S.held.mesh); S.held=null; }
+  $('info').hidden = true; toast('떨어졌어요', 1.4);
+}
+function showOver(){
+  S.phase = 'over'; $('pad').hidden = true; $('keys').hidden = true;
+  const h = S.maxY - TOP;
+  if (S.np===1){
+    const b = bestGet(), isNew = !b || S.count>b.n || (S.count===b.n && h>b.h);
+    if (isNew && S.count>0) bestSet({ n:S.count, h });
+    $('oTitle').textContent = '떨어졌어요';
+    $('oSub').textContent = '받침대 위에 남긴 의자';
+    $('oRes').innerHTML = `${S.count}<small>개</small>`;
+    $('oBest').textContent = isNew && S.count>0 ? '새 기록이에요' : b ? `최고 기록 ${b.n}개` : '';
+  } else {
+    $('oTitle').textContent = `${S.dropper+1}P가 떨어뜨렸어요`;
+    $('oSub').textContent = '함께 쌓은 의자';
+    $('oRes').innerHTML = `${S.count}<small>개</small>`;
+    $('oBest').textContent = `높이 ${fmtH(h)}`;
+  }
+  showBest(); $('ovOver').hidden = false;
+}
+
+/* 처음 화면 뒤에 놓아 두는 의자 */
+function demo(){
+  const put = (kind, pal, x, z, yaw) => {
+    const q = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0,1,0), yaw);
+    const y = landingY(kind, x, z, q) + .002;
+    S.chairs.push({ kind, pal, rb:addBody(kind,{x,y,z},q), mesh:makeMesh(kind,pal) });
+  };
+  put('wood', 0, -.12, .05, .5); put('stool', 0, .26, -.18, 0);
+}
+
+/* ── 카메라 ── */
+const cam = { theta:.6, phi:1.0, dist:3.2, ty:TOP+.3, auto:true };
+function placeCamera(dt){
+  const want = Math.max(TOP+.2, S.maxY - .1);
+  cam.ty += (want - cam.ty) * Math.min(1, dt*2.2);
+  if (S.phase==='home') cam.theta += dt*.12;
+  const t = new THREE.Vector3(0, cam.ty, 0), sp = Math.sin(cam.phi);
+  camera.position.set(cam.dist*sp*Math.sin(cam.theta), cam.ty + cam.dist*Math.cos(cam.phi), cam.dist*sp*Math.cos(cam.theta));
+  camera.lookAt(t);
+  sun.position.set(2.2, cam.ty+5, 1.6); sun.target.position.set(0, cam.ty-1, 0);
+}
+function resize(){
+  const w = innerWidth, h = innerHeight;
+  renderer.setSize(w, h, false); camera.aspect = w/h;
+  camera.fov = w/h < .8 ? 58 : 45; camera.updateProjectionMatrix();
+}
+addEventListener('resize', resize); resize();
+
+/* ── 돌리기 ── 축은 지금 보는 방향 기준 */
+const ROT_SPEED = 1.6, STEP_ANG = Math.PI/12;
+const rotHold = { axis:null, dir:0, t:0 };
+function axisOf(name){
+  if (name==='yaw') return new THREE.Vector3(0,1,0);
+  const f = new THREE.Vector3(); camera.getWorldDirection(f); f.y = 0; f.normalize();
+  if (name==='roll') return f;
+  return new THREE.Vector3().crossVectors(f, new THREE.Vector3(0,1,0)).normalize(); // 오른쪽
+}
+function rotateHeld(name, ang){
+  if (!S.held) return;
+  S.held.q.premultiply(_q.setFromAxisAngle(axisOf(name), ang)).normalize();
+}
+function holdStart(axis, dir){ if (S.phase!=='aim') return; rotateHeld(axis, dir*STEP_ANG); Object.assign(rotHold, { axis, dir, t:0 }); }
+function holdEnd(){ rotHold.axis = null; }
+function upright(){
+  if (!S.held) return;
+  const e = new THREE.Euler().setFromQuaternion(S.held.q, 'YXZ');
+  S.held.q.setFromAxisAngle(new THREE.Vector3(0,1,0), e.y);
+}
+
+/* ── 입력 ── */
+const ray = new THREE.Raycaster(), plane = new THREE.Plane(new THREE.Vector3(0,1,0), 0), hitP = new THREE.Vector3();
+const pointers = new Map();
+let mouseNDC = null, rightDrag = null, downAt = null, pinch = null;
+
+function aimFromNDC(nx, ny){
+  if (!S.held) return;
+  ray.setFromCamera({ x:nx, y:ny }, camera);
+  plane.constant = -S.held.y;
+  if (ray.ray.intersectPlane(plane, hitP)) setHeldXZ(hitP.x, hitP.z);
+}
+function setHeldXZ(x, z){
+  const lim = HALF + .3;
+  x = Math.max(-lim, Math.min(lim, x)); z = Math.max(-lim, Math.min(lim, z));
+  S.held.x = x; S.held.z = z;
+}
+function moveRelative(dx, dy){
+  if (!S.held) return;
+  const f = new THREE.Vector3(); camera.getWorldDirection(f); f.y = 0; f.normalize();
+  const rt = new THREE.Vector3().crossVectors(f, new THREE.Vector3(0,1,0));
+  const k = cam.dist * .0016;
+  setHeldXZ(S.held.x + (rt.x*dx - f.x*dy)*k, S.held.z + (rt.z*dx - f.z*dy)*k);
+}
+
+cv.addEventListener('contextmenu', e => e.preventDefault());
+cv.addEventListener('pointerdown', e => {
+  cv.setPointerCapture(e.pointerId);
+  pointers.set(e.pointerId, { x:e.clientX, y:e.clientY });
+  if (e.pointerType==='mouse'){
+    if (e.button===2 || e.button===1) rightDrag = { x:e.clientX, y:e.clientY };
+    else if (e.button===0) downAt = { x:e.clientX, y:e.clientY };
+  } else if (pointers.size===2){
+    const [a,b] = [...pointers.values()];
+    pinch = { d:Math.hypot(a.x-b.x, a.y-b.y), mx:(a.x+b.x)/2, my:(a.y+b.y)/2 };
+  }
+});
+cv.addEventListener('pointermove', e => {
+  const prev = pointers.get(e.pointerId);
+  if (e.pointerType==='mouse'){
+    mouseNDC = { x:e.clientX/innerWidth*2-1, y:-(e.clientY/innerHeight)*2+1 };
+    if (rightDrag){
+      cam.theta -= (e.clientX-rightDrag.x)*.008; cam.phi -= (e.clientY-rightDrag.y)*.006; clampCam();
+      rightDrag = { x:e.clientX, y:e.clientY };
+    }
+    return;
+  }
+  if (!prev) return;
+  const cur = { x:e.clientX, y:e.clientY };
+  pointers.set(e.pointerId, cur);
+  if (pointers.size===1 && S.phase==='aim') moveRelative(cur.x-prev.x, cur.y-prev.y);
+  else if (pointers.size===2 && pinch){
+    const [a,b] = [...pointers.values()];
+    const d = Math.hypot(a.x-b.x, a.y-b.y), mx=(a.x+b.x)/2, my=(a.y+b.y)/2;
+    cam.dist *= pinch.d / Math.max(20, d);
+    cam.theta -= (mx-pinch.mx)*.008; cam.phi -= (my-pinch.my)*.006; clampCam();
+    pinch = { d, mx, my };
+  }
+});
+function up(e){
+  pointers.delete(e.pointerId);
+  if (pointers.size<2) pinch = null;
+  if (e.pointerType==='mouse'){
+    if (rightDrag && (e.button===2 || e.button===1)) rightDrag = null;
+    if (e.button===0 && downAt && Math.hypot(e.clientX-downAt.x, e.clientY-downAt.y)<6) drop();
+    downAt = null;
+  }
+}
+cv.addEventListener('pointerup', up);
+cv.addEventListener('pointercancel', e => { pointers.delete(e.pointerId); pinch=null; rightDrag=null; downAt=null; });
+cv.addEventListener('wheel', e => { e.preventDefault(); cam.dist *= Math.exp(e.deltaY*.0012); clampCam(); }, { passive:false });
+function clampCam(){
+  cam.phi = Math.min(1.45, Math.max(.2, cam.phi));
+  cam.dist = Math.min(7, Math.max(1.4, cam.dist));
+}
+
+/* 조작판 버튼: 누르면 15° 한 번, 계속 누르고 있으면 계속 돈다 */
+for (const b of document.querySelectorAll('[data-rot]')){
+  const [axis, dir] = b.dataset.rot.split(':');
+  b.addEventListener('pointerdown', e => { e.preventDefault(); b.setPointerCapture(e.pointerId); b.classList.add('on'); holdStart(axis, +dir); });
+  const end = () => { b.classList.remove('on'); holdEnd(); };
+  b.addEventListener('pointerup', end); b.addEventListener('pointercancel', end); b.addEventListener('lostpointercapture', end);
+}
+let orbitDir = 0;
+for (const b of document.querySelectorAll('[data-orbit]')){
+  b.addEventListener('pointerdown', e => { e.preventDefault(); b.setPointerCapture(e.pointerId); orbitDir = +b.dataset.orbit; });
+  const end = () => { orbitDir = 0; };
+  b.addEventListener('pointerup', end); b.addEventListener('pointercancel', end); b.addEventListener('lostpointercapture', end);
+}
+$('upright').addEventListener('click', upright);
+$('drop').addEventListener('click', drop);
+
+const KEYROT = { KeyQ:['yaw',1], KeyE:['yaw',-1], KeyW:['pitch',-1], KeyS:['pitch',1], KeyA:['roll',1], KeyD:['roll',-1] };
+const keysDown = new Set();
+addEventListener('keydown', e => {
+  if (e.repeat) return;
+  keysDown.add(e.code);
+  if (KEYROT[e.code]) holdStart(...KEYROT[e.code]);
+  else if (e.code==='KeyR') upright();
+  else if (e.code==='Space' || e.code==='Enter'){ if (S.phase==='aim'){ e.preventDefault(); drop(); } }
+  else if (e.code==='ArrowLeft') orbitDir = -1;
+  else if (e.code==='ArrowRight') orbitDir = 1;
+});
+addEventListener('keyup', e => {
+  keysDown.delete(e.code);
+  if (KEYROT[e.code] && rotHold.axis===KEYROT[e.code][0] && rotHold.dir===KEYROT[e.code][1]) holdEnd();
+  if (e.code==='ArrowLeft' || e.code==='ArrowRight') orbitDir = 0;
+});
+addEventListener('blur', () => { holdEnd(); orbitDir = 0; rightDrag = null; });
+
+/* 처음 화면 버튼 */
+let vsN = 2;
+for (const b of document.querySelectorAll('#np button')){
+  b.addEventListener('click', () => { vsN = +b.dataset.n;
+    for (const o of document.querySelectorAll('#np button')) o.classList.toggle('on', o===b); });
+}
+$('bSolo').addEventListener('click', () => start(1));
+$('bVs').addEventListener('click', () => start(vsN));
+$('bAgain').addEventListener('click', () => start(S.np));
+$('bHome').addEventListener('click', goHome);
+$('home').addEventListener('click', goHome);
+
+/* ── 매 프레임 ── */
+const box3 = new THREE.Box3();
+let last = performance.now(), acc = 0;
+function frame(now){
+  const dt = Math.min(.05, (now-last)/1000); last = now;
+
+  acc += dt; let n = 0;
+  while (acc >= STEP && n < 6){ world.step(); acc -= STEP; n++; }
+  if (n === 6) acc = 0;
+
+  let top = TOP;
+  for (const c of S.chairs){
+    const t = c.rb.translation(), r = c.rb.rotation();
+    c.mesh.position.set(t.x,t.y,t.z); c.mesh.quaternion.set(r.x,r.y,r.z,r.w);
+    c.mesh.updateMatrixWorld();
+    if (comY(c) > TOP-.1){ box3.setFromObject(c.mesh); top = Math.max(top, box3.max.y); }
+  }
+  S.maxY = top;
+
+  if (S.phase==='aim' && S.held){
+    if (rotHold.axis){ rotHold.t += dt; if (rotHold.t > .25) rotateHeld(rotHold.axis, rotHold.dir*ROT_SPEED*dt); }
+    if (mouseNDC && !isTouch) aimFromNDC(mouseNDC.x, mouseNDC.y);
+    const h = S.held, want = landingY(h.kind, h.x, h.z, h.q) + GAP;
+    h.y += (want - h.y) * Math.min(1, dt*14);
+    h.mesh.position.set(h.x, h.y, h.z); h.mesh.quaternion.copy(h.q);
+  }
+  if (S.phase==='settle'){
+    S.settleT += dt;
+    S.quietT = quiet() ? S.quietT+dt : 0;
+    if (S.quietT > .5 || S.settleT > 8) settled();
+  }
+  if ((S.phase==='aim' || S.phase==='settle') && S.chairs.some(c => comY(c) < TOP-.15)) fell();
+  if (S.phase==='falling'){ S.overT -= dt; if (S.overT <= 0) showOver(); }
+  if (S.phase!=='aim') updateStats();
+  else $('sHeight').textContent = fmtH(S.maxY-TOP);
+
+  if (S.toastT > 0){ S.toastT -= dt; if (S.toastT <= 0) $('toast').classList.remove('on'); }
+  if (orbitDir) cam.theta += orbitDir*dt*1.4;
+  placeCamera(dt);
+  renderer.render(scene, camera);
+  requestAnimationFrame(frame);
+}
+
+showBest(); demo();
+$('bSolo').disabled = false; $('bSolo').textContent = '혼자 하기';
+$('bVs').disabled = false;
+requestAnimationFrame(frame);
+
+if (new URLSearchParams(location.search).has('t')) window.__t = { S, TYPES, makeMesh, scene, world, landingY, drop, start, holdStart, holdEnd, rotateHeld, setHeldXZ, cam, comY, TOP };
+</script>
+</body>
+</html>
