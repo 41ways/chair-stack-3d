@@ -157,7 +157,7 @@ button:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
 </div>
 <div class="keys" id="keys" hidden>
   마우스로 옮기고 <b>클릭</b> 놓기 · <b>오른쪽 드래그</b> 시점 · <b>휠</b> 확대<br>
-  <b>Q</b><b>E</b> 돌리기 · <b>W</b><b>S</b> 앞뒤 · <b>A</b><b>D</b> 옆 · <b>R</b> 바로 · <b>Space</b> 놓기
+  <b>Q</b><b>E</b> 돌리기 · <b>W</b><b>S</b> 앞뒤 · <b>A</b><b>D</b> 옆 · <b>R</b> 바로 · <b>Space</b> 놓기 · <b>G</b> 핑
 </div>
 
 <div class="ov" id="ovHome">
@@ -233,11 +233,13 @@ import * as THREE from 'three';
 import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.js';
 import RAPIER from 'https://cdn.jsdelivr.net/npm/@dimforge/rapier3d-compat@0.12.0/rapier.es.js';
 import { makeLobby } from './lobby.js';
+import { makePings, pingGate } from './ping.js';
 
 const $ = id => document.getElementById(id);
 
 /* ── 버전 ── 새 버전은 맨 위에 한 줄, CHANGELOG.md, git 태그 vX.Y */
 const VERSIONS = [
+  ['1.5','핑 생김. G(ㅎ)를 누른 채 왼쪽 ? 물음표, 위 ! 위험, 오른쪽 → 간다, 아래 취소. 연속 3번, 3번 찍으면 5초 쉼. 자리는 화면 위치로 보냄'],
   ['1.4','온라인 화면에 열린 방 목록. 눌러서 바로 들어가기. 서버 없이 브라우저 하나가 목록을 맡고, 나가면 다른 사람이 이어받음'],
   ['1.3','받침대를 1m에서 1.2m로 키움'],
   ['1.2','온라인으로 같이 하기(방 코드, 최대 6명). 서버 없이 브라우저끼리 바로 연결, 물리는 방장 화면이 계산. 닿는 곳 안내선 색을 하나로'],
@@ -565,6 +567,7 @@ function start(np){
 }
 function goHome(){
   if (NET) netLeave();
+  PING.clear();
   clearChairs(); S.phase='home'; S.maxY=TOP; document.body.classList.add('home');
   $('ovOver').hidden = true; $('ovHome').hidden = false; $('pad').hidden = true; $('keys').hidden = true;
   $('info').hidden = true; $('turn').hidden = true; $('bestBox').hidden = false;
@@ -711,6 +714,7 @@ cv.addEventListener('pointerdown', e => {
 cv.addEventListener('pointermove', e => {
   const prev = pointers.get(e.pointerId);
   if (e.pointerType==='mouse'){
+    if (PING.isOpen()) return;   // 핑 고르는 동안 의자는 그대로
     mouseNDC = { x:e.clientX/innerWidth*2-1, y:-(e.clientY/innerHeight)*2+1 };
     if (rightDrag){
       cam.theta -= (e.clientX-rightDrag.x)*.008; cam.phi -= (e.clientY-rightDrag.y)*.006; clampCam();
@@ -864,7 +868,19 @@ function netLeave(){
   try { if (n.role==='guest' && n.conn) n.conn.send({ t:'bye' }); } catch {}
   setTimeout(() => { try { n.peer.destroy(); } catch {} }, 150);
 }
-function broadcast(m){ if (NET) for (const p of NET.players) if (p.conn && p.conn.open) { try { p.conn.send(m); } catch {} } }
+function broadcast(m, except){ if (NET) for (const p of NET.players) if (p.conn && p.conn.open && p.conn!==except) { try { p.conn.send(m); } catch {} } }
+
+/* 핑(ping.js): G를 누른 채 방향을 골라 뗀다. 자리는 화면 비율(0~1)로 보내 다른 사람 화면의 같은 자리에 찍힌다 */
+const PING = makePings({
+  toScreen: p => [p[0]*innerWidth, p[1]*innerHeight],
+  fromScreen: (x, y) => [r4(x/innerWidth), r4(y/innerHeight)],
+  canPing: () => S.phase!=='home' && $('ovOver').hidden && $('ovNet').hidden,
+  send: m => {
+    if (!NET) return;
+    if (NET.role==='host') broadcast({ t:'mark', k:m.k, p:m.p, name:NET.players[0].name });
+    else if (NET.conn && NET.conn.open) NET.conn.send({ t:'mark', k:m.k, p:m.p });
+  },
+});
 
 /* 방장 */
 function netHost(){
@@ -905,6 +921,13 @@ function hostRecv(conn, d){
   }
   if (idx<0) return;
   if (d.t==='bye'){ hostGone(conn.peer); return; }
+  if (d.t==='mark'){   // 핑: 방장도 3번·5초를 똑같이 막고 나머지에게 넘긴다
+    const pl = NET.players[idx], g = pl.gate || (pl.gate = pingGate());
+    const p = Array.isArray(d.p) ? d.p.map(Number) : [];
+    if (p.length!==2 || !p.every(v => Number.isFinite(v) && v>=0 && v<=1) || !g.take()) return;
+    const m = { t:'mark', k:d.k, p, name:pl.name };
+    PING.receive(m); broadcast(m, conn); return;
+  }
   if (idx!==S.turn || S.phase!=='aim' || !S.held) return;
   const h = S.held, q = Array.isArray(d.q) && d.q.length===4 ? d.q.map(Number) : null;
   if (!q || ![d.x,d.y,d.z,...q].every(Number.isFinite)) return;
@@ -978,6 +1001,7 @@ function guestRecv(d){
     return;
   }
   if (d.t==='st') applyState(d);
+  if (d.t==='mark') PING.receive(d);
 }
 function sendAim(now){
   if (now - NET.lastAim < 50 || !NET.conn) return;
