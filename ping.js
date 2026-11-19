@@ -1,12 +1,23 @@
 /* 핑 — G(한글 ㅎ)를 누른 채 마우스를 밀어 고르고, 떼면 그 자리에 찍힌다.
    왼쪽 ? 물음표, 위 ! 위험, 오른쪽 → 간다, 아래 취소. 연속 3번까지, 3번 찍으면 5초 쉰다.
-   자리는 게임이 정한다: 2D는 월드 좌표, 3D는 화면 비율(0~1). 의자 쌓기 2D·3D가 같은 파일을 쓴다 */
+   자리는 게임이 정한다: 2D는 월드 좌표, 3D는 화면 비율(0~1). 의자 쌓기 2D·3D가 같은 파일을 쓴다.
+   찍힐 때 종류마다 소리가 난다(sounds/question·danger·omw.mp3) */
 
 export const PING_KINDS = {
-  q:  { sym: '?', label: '물음표', color: '#e3a21a' },
-  d:  { sym: '!', label: '위험',   color: '#d8432f' },
-  go: { sym: '→', label: '간다',   color: '#2f7bd1' },
+  q:  { sym: '?', label: '물음표', color: '#e3a21a', sound: 'question' },
+  d:  { sym: '!', label: '위험',   color: '#d8432f', sound: 'danger' },
+  go: { sym: '→', label: '간다',   color: '#2f7bd1', sound: 'omw' },
 };
+/* 소리: 이 파일 옆 sounds/*.mp3. 겹쳐 찍혀도 끊기지 않게 매번 복제해서 튼다 */
+const SOUNDS = {};
+for (const k in PING_KINDS) {
+  const a = new Audio(new URL(`./sounds/${PING_KINDS[k].sound}.mp3`, import.meta.url).href);
+  a.preload = 'auto'; a.volume = .6; SOUNDS[k] = a;
+}
+function playSound(k) {
+  const a = SOUNDS[k]; if (!a) return;
+  try { const c = a.cloneNode(); c.volume = a.volume; const p = c.play(); if (p) p.catch(() => {}); } catch {}
+}
 const DIRS = { left: 'q', up: 'd', right: 'go', down: null };
 export const PING_MAX = 3, PING_COOL = 5000, PING_LIFE = 3000;
 
@@ -95,6 +106,7 @@ export function makePings(o) {
   }
   function show(k, p, name) {
     const kind = PING_KINDS[k]; if (!kind) return;
+    playSound(k);
     const el = document.createElement('div'); el.className = 'pg';
     el.innerHTML = `<u style="border-color:${kind.color}"></u><em style="background:${kind.color}">${kind.sym}</em><span></span>`;
     el.querySelector('span').textContent = `${name} · ${kind.label}`;
