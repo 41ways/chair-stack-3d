@@ -1,5 +1,5 @@
-/* 핑 — G(한글 ㅎ)를 누른 채 마우스를 밀어 고르고, 떼면 그 자리에 찍힌다.
-   롤 핑처럼 X자로 나뉜 원판: 왼쪽 ? 미아, 위 ! 위험, 오른쪽 갑니다, 아래·가운데 취소. 연속 3번까지, 3번 찍으면 5초 쉰다.
+/* 핑 — 롤 핑처럼 G(한글 ㅎ)를 누르면 커서가 바뀌고, 클릭한 자리에 X자로 나뉜 원판이 뜬다.
+   왼쪽 ? 미아, 위 ! 위험, 오른쪽 갑니다, 아래·가운데 취소. 연속 3번까지, 3번 찍으면 5초 쉰다.
    자리는 게임이 정한다: 2D는 월드 좌표, 3D는 화면 비율(0~1). 의자 쌓기 2D·3D가 같은 파일을 쓴다.
    찍힐 때 종류마다 소리가 난다(sounds/question·danger·omw.mp3) */
 
@@ -45,6 +45,8 @@ export function pingGate() {
   };
 }
 
+/* G를 누른 뒤 클릭할 때까지 바뀌는 커서: 금색 조준 고리 */
+const CURSOR = `url("data:image/svg+xml,${encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 32 32"><circle cx="16" cy="16" r="10" fill="none" stroke="#160f08" stroke-width="5"/><circle cx="16" cy="16" r="10" fill="none" stroke="#e2c27a" stroke-width="2.4"/><path d="M16 1v7M16 24v7M1 16h7M24 16h7" stroke="#160f08" stroke-width="5" stroke-linecap="round"/><path d="M16 2v6M16 24v6M2 16h6M24 16h6" stroke="#e2c27a" stroke-width="2.4" stroke-linecap="round"/><circle cx="16" cy="16" r="2.6" fill="#e2c27a" stroke="#160f08" stroke-width="1.2"/></svg>')}")`;
 const CSS = `
 .pg-layer{position:fixed;inset:0;pointer-events:none;z-index:60;overflow:hidden}
 .pg-wheel{position:fixed;width:232px;height:232px;margin:-116px 0 0 -116px;filter:drop-shadow(0 6px 18px #0007)}
@@ -55,9 +57,9 @@ const CSS = `
 .pg-wheel .ctr.on{fill:#3a3322}
 .pg-wheel .ic{transition:transform .08s;opacity:.82}
 .pg-wheel .ic.on{opacity:1}
-.pg-wheel .lb{font:700 12.5px/1 system-ui,sans-serif;fill:#f3ead8;stroke:#000c;stroke-width:3;paint-order:stroke}
+.pg-wheel .cd{font:800 22px/1 system-ui,sans-serif;fill:#f3ead8}
 .pg-wheel.cool{opacity:.55}
-.pg-wheel s{position:absolute;left:-40px;right:-40px;top:100%;margin-top:6px;text-align:center;text-decoration:none;font:600 12.5px/1.3 system-ui,sans-serif;color:#f3ead8;text-shadow:0 1px 3px #000c;white-space:nowrap}
+html.pg-aim,html.pg-aim *{cursor:${CURSOR} 16 16,crosshair!important}
 .pg{position:fixed;left:0;top:0;width:0;height:0}
 .pg svg{position:absolute;left:-36px;top:-42px;width:72px;height:72px;overflow:visible;animation:pg-pop .34s cubic-bezier(.3,1.6,.5,1)}
 .pg u{position:absolute;left:-20px;top:-8px;width:40px;height:16px;border-radius:50%;border:2.5px solid;animation:pg-ring .9s ease-out 3}
@@ -68,21 +70,21 @@ const CSS = `
 `;
 
 /* 원판: 가운데 (116,116), 네 칸은 X자로 나뉜다(위·오른쪽·아래·왼쪽) */
-const C = 116, R = 104, r = 27, RI = 64;
+const C = 116, R = 104, r = 27, RI = 66;
 const pt = (rad, deg) => { const a = deg * Math.PI / 180; return `${(C + rad * Math.cos(a)).toFixed(2)} ${(C + rad * Math.sin(a)).toFixed(2)}`; };
 const sector = deg => `M${pt(r, deg - 45)} L${pt(R, deg - 45)} A${R} ${R} 0 0 1 ${pt(R, deg + 45)} L${pt(r, deg + 45)} A${r} ${r} 0 0 0 ${pt(r, deg - 45)} Z`;
-const SLOTS = [['d', -90, '위험!'], ['go', 0, '갑니다!'], ['x', 90, '취소'], ['q', 180, '미아!']];
+const SLOTS = [['d', -90], ['go', 0], ['x', 90], ['q', 180]];
 function wheelSVG() {
   let h = `<svg width="232" height="232" viewBox="0 0 232 232">`;
   h += `<circle cx="${C}" cy="${C}" r="${R + 5}" fill="none" stroke="#785a28" stroke-width="4"/>`;
   for (const [k, deg] of SLOTS) h += `<path class="sec" data-k="${k}" d="${sector(deg)}"/>`;
   h += `<circle cx="${C}" cy="${C}" r="${R + 1.5}" fill="none" stroke="#c8aa6e" stroke-width="1.6"/>`;
-  for (const [k, deg, lb] of SLOTS) {
-    const a = deg * Math.PI / 180, x = C + RI * Math.cos(a), y = C + RI * Math.sin(a) - 7;
-    h += `<g class="ic" data-k="${k}" style="transform-origin:${x}px ${y}px"><g transform="translate(${x} ${y}) scale(${k === 'x' ? .9 : .78})">${glyph(k)}</g></g>`;
-    h += `<text class="lb" x="${x}" y="${y + 30}" text-anchor="middle">${lb}</text>`;
+  for (const [k, deg] of SLOTS) {
+    const a = deg * Math.PI / 180, x = C + RI * Math.cos(a), y = C + RI * Math.sin(a);
+    h += `<g class="ic" data-k="${k}" style="transform-origin:${x}px ${y}px"><g transform="translate(${x} ${y}) scale(${k === 'x' ? 1.15 : 1.22})">${glyph(k)}</g></g>`;
   }
-  h += `<circle class="ctr" cx="${C}" cy="${C}" r="${r - 4}"/><g transform="translate(${C} ${C}) scale(.75)">${glyph('x')}</g>`;
+  h += `<circle class="ctr" cx="${C}" cy="${C}" r="${r - 4}"/><g class="cx" transform="translate(${C} ${C}) scale(.75)">${glyph('x')}</g>`;
+  h += `<text class="cd" x="${C}" y="${C + 8}" text-anchor="middle"></text>`;
   return h + `</svg>`;
 }
 
@@ -98,10 +100,11 @@ export function makePings(o) {
   }
   const layer = document.createElement('div'); layer.className = 'pg-layer'; document.body.appendChild(layer);
   const wheel = document.createElement('div'); wheel.className = 'pg-wheel'; wheel.hidden = true;
-  wheel.innerHTML = wheelSVG() + '<s></s>';
+  wheel.innerHTML = wheelSVG();
   layer.appendChild(wheel);
   const gate = pingGate();
-  const S = { open: false, cx: 0, cy: 0, mx: innerWidth / 2, my: innerHeight / 2, sel: null, list: [], raf: 0 };
+  // aim: G를 눌러 클릭을 기다리는 중(커서가 바뀜). open: 원판이 떠 있음. drag: 누른 채 끄는 중
+  const S = { aim: false, open: false, drag: false, cx: 0, cy: 0, mx: innerWidth / 2, my: innerHeight / 2, sel: null, list: [], raf: 0 };
 
   const pick = () => {
     const dx = S.mx - S.cx, dy = S.my - S.cy;
@@ -116,22 +119,24 @@ export function makePings(o) {
       if (el.classList.contains('ic')) el.style.transform = on ? 'scale(1.18)' : '';
     }
     wheel.querySelector('.ctr').classList.toggle('on', S.sel === null);
-    const w = gate.wait(), left = gate.left();
+    const w = gate.wait();   // 쉬는 중이면 가운데에 남은 초
     wheel.classList.toggle('cool', w > 0);
-    wheel.querySelector('s').textContent = w > 0 ? `${Math.ceil(w / 1000)}초 뒤에 다시` : `${left}번 남음`;
+    wheel.querySelector('.cd').textContent = w > 0 ? Math.ceil(w / 1000) : '';
+    wheel.querySelector('.cx').style.display = w > 0 ? 'none' : '';
   }
-  function open() {
-    if (S.open || !o.canPing()) return;
-    S.open = true; S.cx = S.mx; S.cy = S.my;
+  function setAim(on) {
+    S.aim = on; document.documentElement.classList.toggle('pg-aim', on);
+  }
+  function open(x, y) {
+    S.open = true; S.cx = x; S.cy = y;
     wheel.style.left = S.cx + 'px'; wheel.style.top = S.cy + 'px'; wheel.hidden = false;
     paint();
-    if (gate.wait() > 0) S.coolT = setInterval(paint, 250);
+    clearInterval(S.coolT); if (gate.wait() > 0) S.coolT = setInterval(paint, 250);
   }
   function close(fire) {
-    if (!S.open) return;
-    S.open = false; wheel.hidden = true; clearInterval(S.coolT);
-    const k = S.sel;
-    if (!fire || !PING_KINDS[k] || !o.canPing() || !gate.take()) return;
+    const k = S.sel, was = S.open;
+    S.open = false; S.drag = false; wheel.hidden = true; clearInterval(S.coolT); setAim(false);
+    if (!was || !fire || !PING_KINDS[k] || !o.canPing() || !gate.take()) return;
     const p = o.fromScreen(S.cx, S.cy);
     show(k, p, '나');
     try { o.send({ k, p }); } catch {}
@@ -141,7 +146,7 @@ export function makePings(o) {
     playSound(k);
     const el = document.createElement('div'); el.className = 'pg';
     el.innerHTML = `<u style="border-color:${kind.color}"></u><svg viewBox="-30 -30 60 60" style="filter:drop-shadow(0 0 6px ${kind.color}aa) drop-shadow(0 2px 3px #000a)">${glyph(k)}</svg><span></span>`;
-    el.querySelector('span').textContent = `${name} · ${kind.label}`;
+    el.querySelector('span').textContent = name;
     layer.appendChild(el);
     const item = { el, p, t: performance.now() };
     S.list.push(item);
@@ -159,19 +164,49 @@ export function makePings(o) {
   }
   function tick() { S.raf = 0; for (const it of S.list) place(it); if (S.list.length) S.raf = requestAnimationFrame(tick); }
 
-  addEventListener('pointermove', e => { if (e.pointerType !== 'mouse') return; S.mx = e.clientX; S.my = e.clientY; if (S.open) paint(); }, true);
+  // G → 커서가 바뀌고, 클릭한 자리에 원판이 뜬다. 누른 채 끌어 고르고 떼면 찍힌다.
+  // 끌지 않고 바로 떼면 원판이 남아 있어 칸을 한 번 더 누르면 된다. G·Esc·우클릭은 취소
+  const busy = () => S.aim || S.open;
+  const swallow = () => performance.now() < (S.eatUntil || 0);   // 핑을 끝낸 직후 뒤따르는 떼기·클릭이 게임에 가지 않게
+  const eat = e => { e.stopPropagation(); e.preventDefault(); };
+  addEventListener('pointermove', e => {
+    if (e.pointerType !== 'mouse') return;
+    S.mx = e.clientX; S.my = e.clientY;
+    if (S.open) paint();
+  }, true);
+  addEventListener('pointerdown', e => {
+    if (!busy() || e.pointerType !== 'mouse') return;
+    eat(e); S.eatUntil = performance.now() + 1500;
+    if (e.button !== 0 || !o.canPing()) return close(false);
+    S.mx = e.clientX; S.my = e.clientY;
+    if (!S.open) { open(e.clientX, e.clientY); S.drag = true; return; }
+    S.drag = false; paint();                    // 떠 있는 원판에서 칸을 누름(떼는 쪽은 위에서 먹는다)
+    S.sel === null ? close(false) : close(true);
+  }, true);
+  addEventListener('pointerup', e => {
+    if (!(busy() || swallow()) || e.pointerType !== 'mouse') return;
+    eat(e); S.eatUntil = performance.now() + 60;   // 뒤따르는 click 까지
+    if (!S.open || !S.drag) return;
+    S.drag = false; paint();
+    if (S.sel !== null) close(true);            // 끌어서 고른 칸. 가운데에서 떼면 원판을 남긴다
+  }, true);
+  for (const t of ['click', 'mousedown', 'mouseup', 'contextmenu']) addEventListener(t, e => { if (busy() || swallow()) eat(e); }, true);
   addEventListener('keydown', e => {
-    if (e.code !== 'KeyG' || e.repeat) return;
     if (e.target.closest && e.target.closest('input,textarea')) return;
-    e.preventDefault(); open();
-  });
-  addEventListener('keyup', e => { if (e.code === 'KeyG') close(true); });
+    if (e.code === 'Escape' && busy()) { eat(e); return close(false); }
+    if (e.code !== 'KeyG' || e.repeat) return;
+    e.preventDefault();
+    if (busy()) return close(false);
+    if (o.canPing()) setAim(true);
+  }, true);
   addEventListener('blur', () => close(false));
+  // 차례가 바뀌어 못 찍게 되면 접는다
+  setInterval(() => { if (busy() && !o.canPing()) close(false); }, 300);
 
   return {
     /** 다른 사람이 찍은 핑 */
     receive(m) { if (m && PING_KINDS[m.k] && m.p != null) show(m.k, m.p, String(m.name || '누군가').slice(0, 12)); },
-    isOpen: () => S.open,
+    isOpen: () => S.open || S.aim,
     clear() { for (const it of [...S.list]) drop(it); },
   };
 }
