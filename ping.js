@@ -1,13 +1,21 @@
 /* 핑 — G(한글 ㅎ)를 누른 채 마우스를 밀어 고르고, 떼면 그 자리에 찍힌다.
-   왼쪽 ? 물음표, 위 ! 위험, 오른쪽 → 간다, 아래 취소. 연속 3번까지, 3번 찍으면 5초 쉰다.
+   롤 핑처럼 X자로 나뉜 원판: 왼쪽 ? 미아, 위 ! 위험, 오른쪽 갑니다, 아래·가운데 취소. 연속 3번까지, 3번 찍으면 5초 쉰다.
    자리는 게임이 정한다: 2D는 월드 좌표, 3D는 화면 비율(0~1). 의자 쌓기 2D·3D가 같은 파일을 쓴다.
    찍힐 때 종류마다 소리가 난다(sounds/question·danger·omw.mp3) */
 
 export const PING_KINDS = {
-  q:  { sym: '?', label: '물음표', color: '#e3a21a', sound: 'question' },
-  d:  { sym: '!', label: '위험',   color: '#d8432f', sound: 'danger' },
-  go: { sym: '→', label: '간다',   color: '#2f7bd1', sound: 'omw' },
+  q:  { label: '미아!',   color: '#e2b04a', sound: 'question' },
+  d:  { label: '위험!',   color: '#e8443a', sound: 'danger' },
+  go: { label: '갑니다!', color: '#2fb59b', sound: 'omw' },
 };
+/* 롤 핑처럼 생긴 아이콘. (0,0) 가운데, 대략 ±22 크기 */
+const INK = '#160f08';
+function glyph(k) {
+  if (k === 'd') return `<path d="M-6.5 -22 L6.5 -22 L3 7 L-3 7 Z" fill="#e8443a" stroke="${INK}" stroke-width="2.4" stroke-linejoin="round"/><circle cy="15" r="5" fill="#e8443a" stroke="${INK}" stroke-width="2.4"/>`;
+  if (k === 'q') return `<text y="15" text-anchor="middle" font-family="Georgia,'Times New Roman',serif" font-weight="900" font-size="44" fill="#e2b04a" stroke="${INK}" stroke-width="2.4" paint-order="stroke">?</text>`;
+  if (k === 'go') return `<path d="M-3.5 -22 H3.5 V-2 H-3.5 Z" fill="#2fb59b" stroke="${INK}" stroke-width="2.2"/><path d="M-19 -9 L0 6 L19 -9 L19 2 L0 19 L-19 2 Z" fill="#2fb59b" stroke="${INK}" stroke-width="2.4" stroke-linejoin="round"/>`;
+  return `<path d="M-9 -9 L9 9 M9 -9 L-9 9" stroke="#e9dcc0" stroke-width="3.4" stroke-linecap="round"/>`;
+}
 /* 소리: 이 파일 옆 sounds/*.mp3. 겹쳐 찍혀도 끊기지 않게 매번 복제해서 튼다 */
 const SOUNDS = {};
 for (const k in PING_KINDS) {
@@ -39,23 +47,44 @@ export function pingGate() {
 
 const CSS = `
 .pg-layer{position:fixed;inset:0;pointer-events:none;z-index:60;overflow:hidden}
-.pg-wheel{position:fixed;width:168px;height:168px;margin:-84px 0 0 -84px;border-radius:50%;background:#1d2622c4;box-shadow:0 6px 24px #0004;backdrop-filter:blur(4px);-webkit-backdrop-filter:blur(4px)}
-.pg-wheel i{position:absolute;width:52px;height:52px;margin:-26px 0 0 -26px;border-radius:50%;display:grid;place-items:center;font:700 24px/1 system-ui,sans-serif;color:#fff;opacity:.55;transition:transform .08s,opacity .08s}
-.pg-wheel i.on{opacity:1;transform:scale(1.18)}
-.pg-wheel i[data-k=q]{left:30px;top:84px}.pg-wheel i[data-k=d]{left:84px;top:30px}
-.pg-wheel i[data-k=go]{left:138px;top:84px}.pg-wheel i[data-k=x]{left:84px;top:138px;font-size:18px}
-.pg-wheel i.on[data-k=q]{background:#e3a21a}.pg-wheel i.on[data-k=d]{background:#d8432f}.pg-wheel i.on[data-k=go]{background:#2f7bd1}.pg-wheel i.on[data-k=x]{background:#ffffff33}
-.pg-wheel b{position:absolute;left:50%;top:50%;width:10px;height:10px;margin:-5px 0 0 -5px;border-radius:50%;background:#fff}
-.pg-wheel s{position:absolute;left:0;right:0;top:100%;margin-top:8px;text-align:center;text-decoration:none;font:600 13px/1.3 system-ui,sans-serif;color:#fff;text-shadow:0 1px 3px #000a;white-space:nowrap}
-.pg-wheel.cool i{opacity:.25}
+.pg-wheel{position:fixed;width:232px;height:232px;margin:-116px 0 0 -116px;filter:drop-shadow(0 6px 18px #0007)}
+.pg-wheel svg{display:block;overflow:visible}
+.pg-wheel .sec{fill:#141716e6;stroke:#c8aa6e;stroke-width:1.4;transition:fill .08s}
+.pg-wheel .sec.on{fill:#4d4128f2}
+.pg-wheel .ctr{fill:#101312;stroke:#c8aa6e;stroke-width:2}
+.pg-wheel .ctr.on{fill:#3a3322}
+.pg-wheel .ic{transition:transform .08s;opacity:.82}
+.pg-wheel .ic.on{opacity:1}
+.pg-wheel .lb{font:700 12.5px/1 system-ui,sans-serif;fill:#f3ead8;stroke:#000c;stroke-width:3;paint-order:stroke}
+.pg-wheel.cool{opacity:.55}
+.pg-wheel s{position:absolute;left:-40px;right:-40px;top:100%;margin-top:6px;text-align:center;text-decoration:none;font:600 12.5px/1.3 system-ui,sans-serif;color:#f3ead8;text-shadow:0 1px 3px #000c;white-space:nowrap}
 .pg{position:fixed;left:0;top:0;width:0;height:0}
-.pg em{position:absolute;left:-18px;top:-18px;width:36px;height:36px;border-radius:50%;display:grid;place-items:center;font:800 22px/1 system-ui,sans-serif;font-style:normal;color:#fff;box-shadow:0 2px 8px #0005,0 0 0 3px #fff;animation:pg-pop .32s cubic-bezier(.3,1.6,.5,1)}
-.pg u{position:absolute;left:-18px;top:-18px;width:36px;height:36px;border-radius:50%;border:3px solid;animation:pg-ring 1s ease-out 2}
-.pg span{position:absolute;left:0;top:24px;transform:translateX(-50%);padding:2px 8px;border-radius:999px;background:#1d2622d0;color:#fff;font:600 12px/1.4 system-ui,sans-serif;white-space:nowrap}
+.pg svg{position:absolute;left:-36px;top:-42px;width:72px;height:72px;overflow:visible;animation:pg-pop .34s cubic-bezier(.3,1.6,.5,1)}
+.pg u{position:absolute;left:-20px;top:-8px;width:40px;height:16px;border-radius:50%;border:2.5px solid;animation:pg-ring .9s ease-out 3}
+.pg span{position:absolute;left:0;top:34px;transform:translateX(-50%);padding:2px 9px;border-radius:999px;background:#141716e0;border:1px solid #c8aa6e88;color:#f3ead8;font:600 12px/1.4 system-ui,sans-serif;white-space:nowrap}
 .pg.out{transition:opacity .4s;opacity:0}
-@keyframes pg-pop{from{transform:scale(.2);opacity:0}to{transform:scale(1);opacity:1}}
-@keyframes pg-ring{from{transform:scale(1);opacity:.9}to{transform:scale(2.6);opacity:0}}
+@keyframes pg-pop{from{transform:translateY(-14px) scale(.3);opacity:0}to{transform:none;opacity:1}}
+@keyframes pg-ring{from{transform:scale(.6);opacity:1}to{transform:scale(2.4);opacity:0}}
 `;
+
+/* 원판: 가운데 (116,116), 네 칸은 X자로 나뉜다(위·오른쪽·아래·왼쪽) */
+const C = 116, R = 104, r = 27, RI = 64;
+const pt = (rad, deg) => { const a = deg * Math.PI / 180; return `${(C + rad * Math.cos(a)).toFixed(2)} ${(C + rad * Math.sin(a)).toFixed(2)}`; };
+const sector = deg => `M${pt(r, deg - 45)} L${pt(R, deg - 45)} A${R} ${R} 0 0 1 ${pt(R, deg + 45)} L${pt(r, deg + 45)} A${r} ${r} 0 0 0 ${pt(r, deg - 45)} Z`;
+const SLOTS = [['d', -90, '위험!'], ['go', 0, '갑니다!'], ['x', 90, '취소'], ['q', 180, '미아!']];
+function wheelSVG() {
+  let h = `<svg width="232" height="232" viewBox="0 0 232 232">`;
+  h += `<circle cx="${C}" cy="${C}" r="${R + 5}" fill="none" stroke="#785a28" stroke-width="4"/>`;
+  for (const [k, deg] of SLOTS) h += `<path class="sec" data-k="${k}" d="${sector(deg)}"/>`;
+  h += `<circle cx="${C}" cy="${C}" r="${R + 1.5}" fill="none" stroke="#c8aa6e" stroke-width="1.6"/>`;
+  for (const [k, deg, lb] of SLOTS) {
+    const a = deg * Math.PI / 180, x = C + RI * Math.cos(a), y = C + RI * Math.sin(a) - 7;
+    h += `<g class="ic" data-k="${k}" style="transform-origin:${x}px ${y}px"><g transform="translate(${x} ${y}) scale(${k === 'x' ? .9 : .78})">${glyph(k)}</g></g>`;
+    h += `<text class="lb" x="${x}" y="${y + 30}" text-anchor="middle">${lb}</text>`;
+  }
+  h += `<circle class="ctr" cx="${C}" cy="${C}" r="${r - 4}"/><g transform="translate(${C} ${C}) scale(.75)">${glyph('x')}</g>`;
+  return h + `</svg>`;
+}
 
 /**
  * o.toScreen(p) → [clientX, clientY] | null   찍힌 자리를 지금 화면 위치로
@@ -69,24 +98,27 @@ export function makePings(o) {
   }
   const layer = document.createElement('div'); layer.className = 'pg-layer'; document.body.appendChild(layer);
   const wheel = document.createElement('div'); wheel.className = 'pg-wheel'; wheel.hidden = true;
-  wheel.innerHTML = '<i data-k="q">?</i><i data-k="d">!</i><i data-k="go">→</i><i data-k="x">✕</i><b></b><s></s>';
+  wheel.innerHTML = wheelSVG() + '<s></s>';
   layer.appendChild(wheel);
   const gate = pingGate();
   const S = { open: false, cx: 0, cy: 0, mx: innerWidth / 2, my: innerHeight / 2, sel: null, list: [], raf: 0 };
 
   const pick = () => {
     const dx = S.mx - S.cx, dy = S.my - S.cy;
-    if (Math.hypot(dx, dy) < 22) return null;
+    if (Math.hypot(dx, dy) < r) return null;   // 가운데 = 취소
     const dir = Math.abs(dx) > Math.abs(dy) ? (dx < 0 ? 'left' : 'right') : (dy < 0 ? 'up' : 'down');
     return dir === 'down' ? 'x' : DIRS[dir];
   };
   function paint() {
     S.sel = pick();
-    for (const i of wheel.querySelectorAll('i')) i.classList.toggle('on', i.dataset.k === S.sel);
+    for (const el of wheel.querySelectorAll('.sec,.ic')) {
+      const on = el.dataset.k === S.sel; el.classList.toggle('on', on);
+      if (el.classList.contains('ic')) el.style.transform = on ? 'scale(1.18)' : '';
+    }
+    wheel.querySelector('.ctr').classList.toggle('on', S.sel === null);
     const w = gate.wait(), left = gate.left();
     wheel.classList.toggle('cool', w > 0);
-    const sel = PING_KINDS[S.sel];
-    wheel.querySelector('s').textContent = w > 0 ? `${Math.ceil(w / 1000)}초 뒤에 다시` : sel ? `${sel.label} · ${left}번 남음` : S.sel === 'x' ? '취소' : `${left}번 남음`;
+    wheel.querySelector('s').textContent = w > 0 ? `${Math.ceil(w / 1000)}초 뒤에 다시` : `${left}번 남음`;
   }
   function open() {
     if (S.open || !o.canPing()) return;
@@ -108,7 +140,7 @@ export function makePings(o) {
     const kind = PING_KINDS[k]; if (!kind) return;
     playSound(k);
     const el = document.createElement('div'); el.className = 'pg';
-    el.innerHTML = `<u style="border-color:${kind.color}"></u><em style="background:${kind.color}">${kind.sym}</em><span></span>`;
+    el.innerHTML = `<u style="border-color:${kind.color}"></u><svg viewBox="-30 -30 60 60" style="filter:drop-shadow(0 0 6px ${kind.color}aa) drop-shadow(0 2px 3px #000a)">${glyph(k)}</svg><span></span>`;
     el.querySelector('span').textContent = `${name} · ${kind.label}`;
     layer.appendChild(el);
     const item = { el, p, t: performance.now() };
