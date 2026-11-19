@@ -227,6 +227,7 @@ const $ = id => document.getElementById(id);
 
 /* ── 버전 ── 새 버전은 맨 위에 한 줄, CHANGELOG.md, git 태그 vX.Y */
 const VERSIONS = [
+  ['1.3','받침대를 1m에서 1.2m로 키움'],
   ['1.2','온라인으로 같이 하기(방 코드, 최대 6명). 서버 없이 브라우저끼리 바로 연결, 물리는 방장 화면이 계산. 닿는 곳 안내선 색을 하나로'],
   ['1.1','기본판과 확장판으로 나눔. 기본판은 다리·등받이가 모두 직각인 네모 의자만, 확장판은 다섯 종류. 최고 기록도 판마다 따로. 놓을 때 닿는 곳을 세로선과 점으로 보여 줌(먼저 닿는 곳은 빨간색)'],
   ['1.0','처음 공개. 의자 다섯 종류(나무 의자·학교 의자·네모 스툴·팔걸이 소파·긴 벤치), 돌리기·앞뒤·옆으로 눕히기, 혼자 하기와 한 화면 2~4명'],
@@ -237,7 +238,7 @@ $('verList').innerHTML = VERSIONS.map(([v,t]) => `<li><b>v${v}</b><span>${t}</sp
 
 /* ── 크기(미터) ── */
 const TOP = 0.9;      // 받침대 윗면 높이
-const HALF = 0.5;     // 받침대 윗면 반 너비(1m × 1m)
+const HALF = 0.6;     // 받침대 윗면 반 너비(1.2m × 1.2m)
 const GAP = 0.10;     // 놓기 전 떠 있는 높이
 const STEP = 1/120;
 const DENS = { frame:650, seat:650, metal:2500, cushion:90, fabric:140 };
@@ -547,7 +548,7 @@ function start(np){
   $('ovHome').hidden = true; $('ovOver').hidden = true;
   $('ovNet').hidden = true;
   $('pad').hidden = false; $('keys').hidden = isTouch; $('bestBox').hidden = np>1 || !!NET;
-  cam.theta = .6; cam.phi = 1.0; cam.dist = 3.2;
+  cam.theta = .6; cam.phi = 1.0; cam.dist = 3.5;
   S.phase = 'aim'; spawnHeld(); showTurn(); updateStats(); setDropEnabled(myTurn());
 }
 function goHome(){
@@ -621,7 +622,7 @@ function demo(){
 }
 
 /* ── 카메라 ── */
-const cam = { theta:.6, phi:1.0, dist:3.2, ty:TOP+.3, auto:true };
+const cam = { theta:.6, phi:1.0, dist:3.5, ty:TOP+.3, auto:true };
 function placeCamera(dt){
   const want = Math.max(TOP+.2, S.maxY - .1);
   cam.ty += (want - cam.ty) * Math.min(1, dt*2.2);
@@ -954,7 +955,7 @@ function applyState(d){
     document.body.classList.remove('home');
     $('ovHome').hidden = true; $('ovNet').hidden = true; $('ovOver').hidden = true;
     $('pad').hidden = false; $('keys').hidden = isTouch; $('bestBox').hidden = true;
-    cam.theta = .6; cam.phi = 1.0; cam.dist = 3.2;
+    cam.theta = .6; cam.phi = 1.0; cam.dist = 3.5;
   }
   S.np = NET.players.length; S.count = d.count; S.dropper = d.dropper;
   const turnChanged = S.turn!==d.turn; S.turn = d.turn;
