@@ -239,6 +239,7 @@ const $ = id => document.getElementById(id);
 
 /* ── 버전 ── 새 버전은 맨 위에 한 줄, CHANGELOG.md, git 태그 vX.Y */
 const VERSIONS = [
+  ['1.6','핑은 온라인에서 남의 차례에만 찍힘(내 차례·혼자 할 때는 안 됨)'],
   ['1.5','핑 생김. G(ㅎ)를 누른 채 왼쪽 ? 물음표, 위 ! 위험, 오른쪽 → 간다, 아래 취소. 연속 3번, 3번 찍으면 5초 쉼. 자리는 화면 위치로 보냄'],
   ['1.4','온라인 화면에 열린 방 목록. 눌러서 바로 들어가기. 서버 없이 브라우저 하나가 목록을 맡고, 나가면 다른 사람이 이어받음'],
   ['1.3','받침대를 1m에서 1.2m로 키움'],
@@ -874,7 +875,7 @@ function broadcast(m, except){ if (NET) for (const p of NET.players) if (p.conn 
 const PING = makePings({
   toScreen: p => [p[0]*innerWidth, p[1]*innerHeight],
   fromScreen: (x, y) => [r4(x/innerWidth), r4(y/innerHeight)],
-  canPing: () => S.phase!=='home' && $('ovOver').hidden && $('ovNet').hidden,
+  canPing: () => !!NET && !myTurn() && S.phase!=='home' && $('ovOver').hidden && $('ovNet').hidden,   // 온라인에서 남의 차례에만
   send: m => {
     if (!NET) return;
     if (NET.role==='host') broadcast({ t:'mark', k:m.k, p:m.p, name:NET.players[0].name });
@@ -924,7 +925,7 @@ function hostRecv(conn, d){
   if (d.t==='mark'){   // 핑: 방장도 3번·5초를 똑같이 막고 나머지에게 넘긴다
     const pl = NET.players[idx], g = pl.gate || (pl.gate = pingGate());
     const p = Array.isArray(d.p) ? d.p.map(Number) : [];
-    if (p.length!==2 || !p.every(v => Number.isFinite(v) && v>=0 && v<=1) || !g.take()) return;
+    if (idx===S.turn || p.length!==2 || !p.every(v => Number.isFinite(v) && v>=0 && v<=1) || !g.take()) return;
     const m = { t:'mark', k:d.k, p, name:pl.name };
     PING.receive(m); broadcast(m, conn); return;
   }
